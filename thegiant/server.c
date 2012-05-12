@@ -12,7 +12,9 @@
 #include "server.h"
 
 #define LISTEN_BACKLOG  1024
+// xxx
 #define READ_BUFFER_SIZE 64*1024
+
 #define Py_XCLEAR(obj) do { if(obj) { Py_DECREF(obj); obj = NULL; } } while(0)
 #define GIL_LOCK(n) PyGILState_STATE _gilstate_##n = PyGILState_Ensure()
 #define GIL_UNLOCK(n) PyGILState_Release(_gilstate_##n)
@@ -111,7 +113,7 @@ ev_io_on_request(struct ev_loop* mainloop, ev_io* watcher, const int events)
     DBG("Could not set_nonblocking() client %d: errno %d", client_fd, errno);
     return;
   }
-
+  
   GIL_LOCK(0);
   Request* request = Request_new(client_fd, inet_ntoa(sockaddr.sin_addr));
   GIL_UNLOCK(0);
@@ -157,15 +159,13 @@ ev_io_on_read(struct ev_loop* mainloop, ev_io* watcher, const int events)
   // puts(read_buf);
   // puts("--------------------------");
 
-  if (read_buf[0] == '*'){
-      // puts("got command - ");
-  }
+
 
   Request_parse(request, read_buf, read_bytes);
 
   if (request->state.error_code) {
     DBG_REQ(request, "Parse error");
-    // XXX
+    // XXX TODO: send error dammit 
     request->current_chunk = PyString_FromString("+OK\r\n");
     // request->current_chunk = PyString_FromString(
     //   http_error_messages[request->state.error_code]);

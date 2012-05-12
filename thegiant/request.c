@@ -18,6 +18,7 @@ typedef struct {
 
 Request* Request_new(int client_fd, const char* client_addr)
 {
+  puts("======== new request =================");
   Request* request = malloc(sizeof(Request));
 #ifdef DEBUG
   static unsigned long request_id = 0;
@@ -36,6 +37,10 @@ void Request_reset(Request* request)
   memset(&request->state, 0, sizeof(Request) - (size_t)&((Request*)NULL)->state);
   request->state.response_length_unknown = true;
   request->parser.body = (string){NULL, 0};
+
+  // XXX
+  request->parse_phase = RDS_PHASE_CONNECT;
+  request->multibulklen = 0;
 }
 
 void Request_free(Request* request)
@@ -66,10 +71,149 @@ void Request_clean(Request* request)
 }
 
 /* Parse stuff */
+static int parse_data_line(Request* request, const char* data, const size_t data_len){  
+    long long ll;
+    char *newline = NULL;
+    int pos = 0, ok;
+    puts("====== parsing data line =====");
+    puts(data+request->lastpos);
+}
+
+static int parse_start_line(Request* request, const char* data, const size_t data_len){  
+    long long ll;
+    char *newline = NULL;
+    int pos = 0, ok;
+
+    puts("==== parsing start line now ====");
+    if (data[request->lastpos] == '$'){
+            // 
+            newline = strchr(data+request->lastpos,'\r');
+
+            ok = string2ll(data+request->lastpos+1, newline - (data+ request->lastpos+1),&ll);
+            if (!ok || ll < 0 || ll > 512*1024*1024) {
+                return false;
+            }
+
+            puts("found length of data line");
+            printf(">>>> len %i \n", ll);
+
+            // now parse data line...            
+            pos = (newline - data)+2;
+
+              if (ll <= 0) {
+                  // handle $-1\r\n ?
+                  // protocol error !!!
+                  // c->querybuf = sdsrange(c->querybuf,pos,-1);                
+                  return false;
+              }
+
+              // now send the remainder to start line...
+              request->lastpos = pos;                
+              parse_data_line(request, data, data_len);
+
+
+    } else {
+      puts("ERR: protocol error");
+      return false;
+    }
+    return true;
+}
+
+
+
+static int parse_connect_line(Request* request, const char* data, const size_t data_len){  
+    char *newline = NULL;
+    int pos = 0, ok;
+    long long ll;
+
+
+  if (request->parse_phase == RDS_PHASE_CONNECT){
+    if (request->multibulklen == 0) {        
+        newline = strchr(data,'\r');
+        if (newline == NULL) {
+            // if (sdslen(c->querybuf) > REDIS_INLINE_MAX_SIZE) {
+            //     addReplyError(c,"Protocol error: too big mbulk count string");
+            //     setProtocolError(c,0);
+            // }
+            return false;
+        }
+
+        ok = string2ll(data+1, newline-(data+1), &ll);
+        if (!ok || ll > 1024*1024) {
+            puts("couldnt find data length... ");
+            return false;
+        }
+        pos = (newline - data)+2;
+
+        if (ll <= 0) {
+            // handle *-1\r\n ?
+            // c->querybuf = sdsrange(c->querybuf,pos,-1);
+            return true;
+        }        
+
+        puts("found length of commands");
+        printf(">>>> len %i \n", ll);
+        request->multibulklen = ll;
+        request->parse_phase = RDS_PHASE_START;
+
+        // now send the remainder to start line...
+        request->lastpos = pos;                
+        parse_start_line(request, data, data_len);
+    }
+
+  } else {
+    return false;
+  }
+}
+
+
+static int parse_multi_line_message(Request* request, const char* data, const size_t data_len){  
+  return parse_connect_line(request, data, data_len);  
+}
+
+static int parse_single_line_message(Request* request, const char* data, const size_t data_len){
+  return true;
+}
+
 
 void Request_parse(Request* request, const char* data, const size_t data_len)
 {
   // XXX
+
+  puts("--------------------------");
+  if (data_len > 100){
+      // char str2[40];
+      // memcpy(str2, data, 20);
+      // printf("%s \n ", str2);
+      printf("< %i - of chars > \n ", (int)data_len);
+  } else {
+      puts(data);  
+  }  
+  puts("--------------------------");
+
+  bool parse_result = false;
+
+  if (request->parse_phase == RDS_PHASE_CONNECT){
+
+    if (data[0] == '*'){        
+      parse_result = parse_multi_line_message(request, data, data_len);
+    } else {
+      parse_result = parse_single_line_message(request, data, data_len);
+    }
+
+  } else if (request->parse_phase == RDS_PHASE_START){
+      parse_result = parse_start_line(request, data, data_len);
+  } else if (request->parse_phase == RDS_PHASE_DATA){
+      parse_result = parse_multi_line_message(request, data, data_len);
+  }
+
+
+
+  if (!parse_result){
+      request->state.error_code = HTTP_BAD_REQUEST;
+      return;
+  }
+
   // puts(">>>> d1");
   on_line_complete(request);
   // puts(">>>> d2");

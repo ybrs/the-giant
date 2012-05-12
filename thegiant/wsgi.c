@@ -38,7 +38,7 @@ wsgi_call_application(Request* request)
     NULL /* sentinel */
   );
   // puts(">>>> 1.5");
-  Py_XDECREF(request_headers);
+  Py_DECREF(request_headers);
   // puts(">>>> 1.5.1");
   Py_DECREF(start_response);
   // puts(">>>> 1.6");
@@ -137,7 +137,7 @@ wsgi_call_application(Request* request)
    * one send() call (in server.c:ev_io_on_write) which is a (tiny) performance
    * booster because less kernel calls means less kernel call overhead. */
   PyObject* buf = PyString_FromStringAndSize(NULL, 1024);
-  Py_ssize_t length = wsgi_getheaders(request, buf);
+  Py_ssize_t length = 0; // wsgi_getheaders(request, buf);
   // if(length == 0) {
   //   printf(">>>> length: %s\n", length);
   //   Py_DECREF(first_chunk);

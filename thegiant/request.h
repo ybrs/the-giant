@@ -25,6 +25,11 @@ typedef struct {
   string body;
 } bj_parser;
 
+
+#define RDS_PHASE_START    1
+#define RDS_PHASE_DATA     2
+#define RDS_PHASE_CONNECT  3
+
 typedef struct {
 #ifdef DEBUG
   unsigned long id;
@@ -37,6 +42,10 @@ typedef struct {
 
   request_state state;
 
+  int parse_phase;
+  int multibulklen;
+  int lastpos;
+  
   PyObject* status;
   PyObject* headers;
   PyObject* current_chunk;

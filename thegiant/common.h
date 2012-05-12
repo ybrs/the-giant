@@ -55,3 +55,6 @@ PyObject *_REMOTE_ADDR, *_PATH_INFO, *_QUERY_STRING, *_REQUEST_METHOD, *_GET,
 #endif
 
 #endif
+  
+int string2ll(const char *s, size_t slen, long long *value);
+int string2l(const char *s, size_t slen, long *value);
