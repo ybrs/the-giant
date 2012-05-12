@@ -1,0 +1,15 @@
+Metadata-Version: 1.0
+Name: thegiant
+Version: 1.2
+Summary: A screamingly fast Python WSGI server written in C.
+Home-page: https://github.com/jonashaag/bjoern
+Author: Jonas Haag
+Author-email: jonas@lophus.org
+License: 2-clause BSD
+Description: UNKNOWN
+Platform: UNKNOWN
+Classifier: Development Status :: 4 - Beta
+Classifier: License :: OSI Approved :: BSD License
+Classifier: Programming Language :: C
+Classifier: Programming Language :: Python
+Classifier: Topic :: Internet :: WWW/HTTP :: WSGI :: Server
