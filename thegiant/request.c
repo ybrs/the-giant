@@ -17,8 +17,7 @@ typedef struct {
 } Iobject;
 
 Request* Request_new(int client_fd, const char* client_addr)
-{
-  puts("======== new request =================");
+{  
   Request* request = malloc(sizeof(Request));
 #ifdef DEBUG
   static unsigned long request_id = 0;
@@ -75,8 +74,10 @@ static int parse_data_line(Request* request, const char* data, const size_t data
     long long ll;
     char *newline = NULL;
     int pos = 0, ok;
-    puts("====== parsing data line =====");
-    puts(data+request->lastpos);
+    #ifdef DEBUG
+      puts("====== parsing data line =====");
+      puts(data+request->lastpos);
+    #endif      
 }
 
 static int parse_start_line(Request* request, const char* data, const size_t data_len){  
@@ -84,7 +85,8 @@ static int parse_start_line(Request* request, const char* data, const size_t dat
     char *newline = NULL;
     int pos = 0, ok;
 
-    puts("==== parsing start line now ====");
+    DBG("==== parsing start line now ====");
+
     if (data[request->lastpos] == '$'){
             // 
             newline = strchr(data+request->lastpos,'\r');
@@ -94,11 +96,11 @@ static int parse_start_line(Request* request, const char* data, const size_t dat
                 return false;
             }
 
-            puts("found length of data line");
-            printf(">>>> len %i \n", ll);
+            DBG("found length of data line");
+            DBG(">>>> len %i \n", ll);
 
-            // now parse data line...            
-            pos = (newline - data)+2;
+              // now parse data line...            
+              pos = (newline - data)+2;
 
               if (ll <= 0) {
                   // handle $-1\r\n ?
@@ -121,55 +123,115 @@ static int parse_start_line(Request* request, const char* data, const size_t dat
 
 
 
-static int parse_connect_line(Request* request, const char* data, const size_t data_len){  
+static int parse_multi_line_message(Request* request, const char* data, const size_t data_len){  
     char *newline = NULL;
     int pos = 0, ok;
     long long ll;
 
 
   if (request->parse_phase == RDS_PHASE_CONNECT){
-    if (request->multibulklen == 0) {        
-        newline = strchr(data,'\r');
-        if (newline == NULL) {
-            // if (sdslen(c->querybuf) > REDIS_INLINE_MAX_SIZE) {
-            //     addReplyError(c,"Protocol error: too big mbulk count string");
-            //     setProtocolError(c,0);
-            // }
-            return false;
+        if (request->multibulklen == 0) {        
+            newline = strchr(data,'\r');
+            if (newline == NULL) {
+                // if (sdslen(c->querybuf) > REDIS_INLINE_MAX_SIZE) {
+                //     addReplyError(c,"Protocol error: too big mbulk count string");
+                //     setProtocolError(c,0);
+                // }
+                return -2;
+            }
+
+            ok = string2ll(data+1, newline-(data+1), &ll);
+            if (!ok || ll > 1024*1024) {
+                puts("couldnt find data length... ");
+                return -2;
+            }
+            pos = (newline - data)+2;
+
+            if (ll <= 0) {
+                // handle *-1\r\n ?
+                // c->querybuf = sdsrange(c->querybuf,pos,-1);
+                return true;
+            }        
+
+            DBG("found length of commands");
+            DBG(">>>> len %i \n", ll);
+            request->multibulklen = ll;        
+            request->parse_phase = RDS_PHASE_START;
+            DBG("h1");
+            // now send the remainder to start line...
+            request->lastpos = pos;                        
+            DBG("h2");
         }
-
-        ok = string2ll(data+1, newline-(data+1), &ll);
-        if (!ok || ll > 1024*1024) {
-            puts("couldnt find data length... ");
-            return false;
-        }
-        pos = (newline - data)+2;
-
-        if (ll <= 0) {
-            // handle *-1\r\n ?
-            // c->querybuf = sdsrange(c->querybuf,pos,-1);
-            return true;
-        }        
-
-        puts("found length of commands");
-        printf(">>>> len %i \n", ll);
-        request->multibulklen = ll;
-        request->parse_phase = RDS_PHASE_START;
-
-        // now send the remainder to start line...
-        request->lastpos = pos;                
-        parse_start_line(request, data, data_len);
     }
 
-  } else {
-    return false;
-  }
+    while (request->multibulklen){
+        DBG("h3");
+        DBG("state >>> ", request->parse_phase );
+        // since we found the start line, here we parse it...
+        if (request->parse_phase == RDS_PHASE_START){      
+              DBG("==== parsing start line now ====");
+              if (data[request->lastpos] == '$'){
+                      // 
+                      newline = strchr(data+request->lastpos,'\r');
+
+                      ok = string2ll(data+request->lastpos+1, newline - (data+ request->lastpos+1),&ll);
+                      if (!ok || ll < 0 || ll > 512*1024*1024) {
+                          return -2;
+                      }
+
+                      DBG("found length of data line");
+                      DBG(">>>> len %i \n", ll);
+
+                        // now parse data line...            
+                        pos = (newline - data)+2;
+
+                        if (ll <= 0) {
+                            // handle $-1\r\n ?
+                            // protocol error !!!
+                            // c->querybuf = sdsrange(c->querybuf,pos,-1);                
+                            return -2;
+                        }
+
+                        // now send the remainder to start line...
+                        request->lastpos = pos;                
+                        request->parse_phase = RDS_PHASE_DATA;
+                        request->bulklen = ll;
+              } else {
+                puts("ERR: protocol error");
+                return -2;
+              }
+          }
+          // 
+          if (request->parse_phase == RDS_PHASE_DATA){      
+              DBG("======= parsing data line now ============ %i", (int) request->bulklen);
+
+              // do we have enough data ???
+              if (strlen(data) - request->lastpos < (unsigned)(request->bulklen+2)) {
+                  /* Not enough data (+2 == trailing \r\n) */
+                  DBG("------ !!!!! not enough data %i ", request->multibulklen);
+                  break;
+              } else {
+
+              }                
+              DBG("---------- after break ??? ");
+              request->lastpos = request->lastpos + request->bulklen + 2;
+              request->parse_phase = RDS_PHASE_START;
+              DBG("multibulklen: %i ", request->multibulklen);
+              request->multibulklen--;                              
+          }
+    }
+
+    if (request->multibulklen == 0){
+      DBG("returning 1");
+      return 1;
+    }
+
+    DBG("returning -1");
+    return -1;
 }
 
 
-static int parse_multi_line_message(Request* request, const char* data, const size_t data_len){  
-  return parse_connect_line(request, data, data_len);  
-}
+
 
 static int parse_single_line_message(Request* request, const char* data, const size_t data_len){
   return true;
@@ -179,43 +241,45 @@ static int parse_single_line_message(Request* request, const char* data, const s
 void Request_parse(Request* request, const char* data, const size_t data_len)
 {
   // XXX
-
+#ifdef DEBUG
   puts("--------------------------");
-  if (data_len > 100){
+  printf("request->parse_phase: %i\n", request->parse_phase);
+  printf("datalen:", strlen(data));
+  if (strlen(data) > 100){
       // char str2[40];
       // memcpy(str2, data, 20);
       // printf("%s \n ", str2);
-      printf("< %i - of chars > \n ", (int)data_len);
+      printf("< %i - of chars > \n ", strlen(data) );
   } else {
-      puts(data);  
+      DBG(data);  
   }  
   puts("--------------------------");
+#endif
 
-  bool parse_result = false;
-
-  if (request->parse_phase == RDS_PHASE_CONNECT){
-
-    if (data[0] == '*'){        
-      parse_result = parse_multi_line_message(request, data, data_len);
-    } else {
-      parse_result = parse_single_line_message(request, data, data_len);
-    }
-
-  } else if (request->parse_phase == RDS_PHASE_START){
-      parse_result = parse_start_line(request, data, data_len);
-  } else if (request->parse_phase == RDS_PHASE_DATA){
-      parse_result = parse_multi_line_message(request, data, data_len);
-  }
+  int parse_result;
 
 
 
-  if (!parse_result){
+    // if (data[0] == '*'){        
+  parse_result = parse_multi_line_message(request, data, data_len);
+  DBG(">>>>> parse_result %i", parse_result);
+    // } else {
+    //   parse_result = parse_single_line_message(request, data, data_len);
+    // }
+
+  if (parse_result == -2){
       request->state.error_code = HTTP_BAD_REQUEST;
       return;
   }
 
+  // if parse result == -1 then we need more data, so dont do anything yet..
+  if (parse_result == 1){
+      DBG("HERE!!!! %i ", parse_result);
+      on_line_complete(request);  
+  }
+
   // puts(">>>> d1");
-  on_line_complete(request);
+  
   // puts(">>>> d2");
   // request->state.error_code = HTTP_BAD_REQUEST;
 

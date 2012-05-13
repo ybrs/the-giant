@@ -25,6 +25,10 @@ ifneq ($(WANT_SIGINT_HANDLING), no)
 FEATURES	+= -D WANT_SIGINT_HANDLING
 endif
 
+ifneq ($(WANT_SENDFILE), no)
+FEATURES	+= -D DEBUG
+endif
+
 all: prepare-build $(objects) thegiantmodule
 
 print-env:

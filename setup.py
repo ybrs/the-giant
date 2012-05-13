@@ -12,7 +12,9 @@ thegiant_extension = Extension(
     libraries     = ['ev'],
     include_dirs  = ['http-parser'],
     define_macros = [('WANT_SENDFILE', '1'),
-                     ('WANT_SIGINT_HANDLING', '1')],
+                     ('WANT_SIGINT_HANDLING', '1')
+                     # ], 
+                     , ('DEBUG', '1')],
     extra_compile_args = ['-std=c99', '-fno-strict-aliasing', '-Wall',
                           '-Wextra', '-Wno-unused', '-g', '-fPIC']
 )

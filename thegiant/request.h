@@ -45,6 +45,7 @@ typedef struct {
   int parse_phase;
   int multibulklen;
   int lastpos;
+  int bulklen;
   
   PyObject* status;
   PyObject* headers;
