@@ -39,7 +39,7 @@ void Request_reset(Request* request)
 
   // XXX
   request->parse_phase = RDS_PHASE_CONNECT;
-  request->multibulklen = 0;
+  request->multibulklen = 0;  
 }
 
 void Request_free(Request* request)
@@ -70,15 +70,6 @@ void Request_clean(Request* request)
 }
 
 /* Parse stuff */
-static int parse_data_line(Request* request, const char* data, const size_t data_len){  
-    long long ll;
-    char *newline = NULL;
-    int pos = 0, ok;
-    #ifdef DEBUG
-      puts("====== parsing data line =====");
-      puts(data+request->lastpos);
-    #endif      
-}
 
 static int parse_start_line(Request* request, const char* data, const size_t data_len){  
     long long ll;
@@ -155,7 +146,11 @@ static int parse_multi_line_message(Request* request, const char* data, const si
 
             DBG("found length of commands");
             DBG(">>>> len %i \n", ll);
-            request->multibulklen = ll;        
+
+            request->cmd_list = PyList_New(ll);
+
+            request->multibulklen = ll;     
+            request->arg_cnt = 0;   
             request->parse_phase = RDS_PHASE_START;
             DBG("h1");
             // now send the remainder to start line...
@@ -211,7 +206,17 @@ static int parse_multi_line_message(Request* request, const char* data, const si
                   DBG("------ !!!!! not enough data %i ", request->multibulklen);
                   break;
               } else {
-
+                  DBG(">>>>>>>>>>>>>>>>>>>> setting item %i ", request->multibulklen);
+                  char str2[request->bulklen];
+                  memcpy(str2, data + request->lastpos, request->bulklen);
+                  DBG("---------------- arg -------------------");
+                  DBG(">>> %i ", request->bulklen);
+                  DBG("%s \n ", str2);
+                  DBG("---------------- arg -------------------");
+                  PyObject* str = PyString_FromStringAndSize(str2, request->bulklen);                  
+                  PyList_SetItem(request->cmd_list, request->arg_cnt++, str);                   
+                  // Py_DECREF(str);
+                  // free(str2);
               }                
               DBG("---------- after break ??? ");
               request->lastpos = request->lastpos + request->bulklen + 2;
@@ -456,6 +461,19 @@ on_line_complete(Request* request)
   // puts(">>> headers init");
   request->headers = PyDict_New();
   PyDict_Update(request->headers, wsgi_base_dict);
+  
+  puts("X0");
+  PyDict_SetItemString(request->headers, "REDIS_CMD", request->cmd_list);
+  puts("X1");
+  if (request->cmd_list == NULL){    
+    puts("WHATTTTTT !!!!!!!!!!!!!11");
+  } else {
+    puts("X3");
+    // Py_DECREF(request->cmd_list);  
+    puts("X4");
+  }
+  
+
   // puts(">>> headers init 2");
   // /* HTTP_CONTENT_{LENGTH,TYPE} -> CONTENT_{LENGTH,TYPE} */
   // PyDict_SetItem(request->headers, _HTTP_CONTENT_LENGTH, PyString_FromString(120));

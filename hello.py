@@ -18,7 +18,7 @@ def app3(env, sr):
 
 def app4(e, s):
     # print ">>>>>>>>>>>>> here"
-    # print e
+    print e
     # print "=================="
     # print s
     # print "=================="

@@ -172,9 +172,9 @@ ev_io_on_read(struct ev_loop* mainloop, ev_io* watcher, const int events)
     assert(request->iterator == NULL);
 
   } else if(request->state.parse_finished) {
-    // puts(">>>>> 1");
+    puts(">>>>> 1");
     if(!wsgi_call_application(request)) {
-      // puts(">>>>> 2");
+      puts(">>>>> 2");
       assert(PyErr_Occurred());
       PyErr_Print();
       assert(!request->state.chunked_response);
