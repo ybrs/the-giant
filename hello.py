@@ -16,12 +16,18 @@ def app3(env, sr):
     yield ' World'
     yield '\n'
 
+h = {}
+
 def app4(e, s):
     # print ">>>>>>>>>>>>> here"
     # print e
     # print "=================="
     # print s
     # print "=================="
+    if (e['REDIS_CMD'][0] == 'SET'):
+        h[e['REDIS_CMD'][1]] = e['REDIS_CMD'][2]
+    
+    # print h
     s('200 ok', [])
     return ['+OK\r\n']
 
