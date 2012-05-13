@@ -462,15 +462,12 @@ on_line_complete(Request* request)
   request->headers = PyDict_New();
   PyDict_Update(request->headers, wsgi_base_dict);
   
-  puts("X0");
   PyDict_SetItemString(request->headers, "REDIS_CMD", request->cmd_list);
-  puts("X1");
   if (request->cmd_list == NULL){    
     puts("WHATTTTTT !!!!!!!!!!!!!11");
   } else {
-    puts("X3");
-    // Py_DECREF(request->cmd_list);  
-    puts("X4");
+    // TODO: ???
+    // Py_DECREF(request->cmd_list);      
   }
   
 
