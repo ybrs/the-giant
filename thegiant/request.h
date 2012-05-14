@@ -51,6 +51,11 @@ typedef struct {
   PyObject* headers;
   PyObject* cmd_list; // redis command as a list...
   int arg_cnt; // argument counter for redis commands
+
+  char *tmpbuffer;
+  int partialread;
+  int tmpbuffersize;
+
   PyObject* current_chunk;
   Py_ssize_t current_chunk_p;
   PyObject* iterable;

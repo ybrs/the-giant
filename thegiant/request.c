@@ -118,6 +118,9 @@ static int parse_multi_line_message(Request* request, const char* data, const si
     char *newline = NULL;
     int pos = 0, ok;
     long long ll;
+    int partialdone = 0;
+
+    DBG("request last pos %i", request->lastpos);
 
 
   if (request->parse_phase == RDS_PHASE_CONNECT){
@@ -152,16 +155,12 @@ static int parse_multi_line_message(Request* request, const char* data, const si
             request->multibulklen = ll;     
             request->arg_cnt = 0;   
             request->parse_phase = RDS_PHASE_START;
-            DBG("h1");
             // now send the remainder to start line...
             request->lastpos = pos;                        
-            DBG("h2");
         }
     }
 
-    while (request->multibulklen){
-        DBG("h3");
-        DBG("state >>> ", request->parse_phase );
+    while (request->multibulklen){        
         // since we found the start line, here we parse it...
         if (request->parse_phase == RDS_PHASE_START){      
               DBG("==== parsing start line now ====");
@@ -198,37 +197,118 @@ static int parse_multi_line_message(Request* request, const char* data, const si
           }
           // 
           if (request->parse_phase == RDS_PHASE_DATA){      
-              DBG("======= parsing data line now ============ %i", (int) request->bulklen);
+                DBG("======= parsing data line now ============ %i", (int) request->bulklen);
 
-              // do we have enough data ???
-              if (strlen(data) - request->lastpos < (unsigned)(request->bulklen+2)) {
-                  /* Not enough data (+2 == trailing \r\n) */
-                  DBG("------ !!!!! not enough data %i ", request->multibulklen);
-                  break;
-              } else {
-                  DBG(">>>>>>>>>>>>>>>>>>>> setting item %i ", request->multibulklen);
-                  char *str2 = malloc(request->bulklen + 1);
-                  memcpy(str2, data + request->lastpos, request->bulklen);
-                  str2[request->bulklen] = '\0';
+              if (request->partialread == 1){
+                  DBG("--- partial read ---");
+                  DBG("--- in buffer %i ", request->tmpbuffersize );
+                  DBG("--- new data %i ", data_len);
+                  DBG("--- bulklen %i ", request->bulklen);
 
-                  DBG("---------------- arg -------------------");
-                  DBG(">>> %i ", request->bulklen);
-                  DBG("%s \n ", str2);
-                  puts(str2);
-                  DBG("---------------- arg -------------------");
+                  int wehavesize = data_len + request->tmpbuffersize;
+                  DBG("--- we have size %i ", wehavesize);
 
-                  PyObject* str = PyString_FromStringAndSize(str2, request->bulklen);                  
-                  PyList_SetItem(request->cmd_list, request->arg_cnt++, str);                   
-                  // Py_DECREF(str);
-                  // free(str2);
-              }                
-              DBG("---------- after break ??? ");
+                  // +2 for remainin \r\n
+                  if (wehavesize < request->bulklen + 2){
+                      DBG("-- >>> arg NOT completed, we need some more data to parse ");
+                      memcpy(request->tmpbuffer + request->tmpbuffersize, data, data_len);
+                      request->tmpbuffersize += data_len;
+
+                  } else if (wehavesize > request->bulklen + 2){
+                      DBG("-- >>> arg completed, but we have some more data to parse ");
+                      DBG("--------------------------------------------");
+                      DBG("data %i ", (wehavesize - request->bulklen + 2) );
+                      DBG("%i", data_len );
+                      DBG("%s", data);
+                      DBG("--------------------------------------------");
+                  } else {
+                      DBG("-- >>> arg completed, lovely");
+                      // just put data to buffer and leave my dear ... 
+                      memcpy(request->tmpbuffer + request->tmpbuffersize, data, data_len-2);
+                      DBG("-- strlen tmpbuffer %i ", request->tmpbuffersize);
+                      request->partialread = 0;
+                  }
+
+                  if (request->partialread==0){
+                        DBG("--- partial read completed, proceed as usual ");
+                        DBG(">>>>>>>>>>>>>>>>>>>> setting item %i ", request->multibulklen);
+                        DBG("---------------- arg -------------------");
+                        DBG(">>> %i ", request->bulklen);
+                        DBG("---------------- arg -------------------");
+                        PyObject* str = PyString_FromStringAndSize(request->tmpbuffer, request->bulklen);                  
+                        PyList_SetItem(request->cmd_list, request->arg_cnt++, str);   
+                        partialdone = 1;
+                        DBG("freeed --- ");
+                        free(request->tmpbuffer);
+                        DBG("strlen freed %i ", request->tmpbuffer);
+                        request->lastpos = request->lastpos + request->bulklen + 2;
+                        request->parse_phase = RDS_PHASE_START;
+                        DBG("multibulklen: %i ", request->multibulklen);
+                        request->multibulklen--;  
+                        break;
+                  } else {
+                      break;  
+                  }
+              }  // if partialread
+
+              if (!partialdone){
+                  // do we have enough data ???
+                  if (data_len - request->lastpos < (unsigned)(request->bulklen+2)) {
+                      /* Not enough data (+2 == trailing \r\n) */
+                      DBG("------ !!!!! not enough data %i ", request->multibulklen);
+                      request->partialread = 1;
+
+                      // NOTE: 
+                      // if we don't have enough data in the buffer, we create a buffer in client,
+                      // in next call we will append new data to the buffer, check if there is enough data
+                      // if there is we'll create an argument and pass remaining data in the buffer again to the 
+                      // very same function here
+
+                      // step 1: create a tmpbuffer and add our data to there...
+                      request->tmpbuffer = malloc(request->bulklen + 1);
+                      memcpy(request->tmpbuffer, data + request->lastpos, data_len - request->lastpos);
+                      request->tmpbuffersize = data_len - request->lastpos;
+                      request->tmpbuffer[request->bulklen] = '\0';                       
+
+                      DBG("---------------- arg tmpbuffer -------------------");                                    
+                      DBG(">>> needs: %i ", request->bulklen);
+                      DBG(">>> in buffer %i ", request->tmpbuffersize );                      
+                      DBG(">>> lendata %i ", data_len);         
+                      DBG(">>> request last pos %i ", request->lastpos);       
+                      DBG("%s", request->tmpbuffer);
+                      
+                      DBG("---------------- arg tmpbuffer -------------------");
+
+                      break;
+                  } else {
+                      request->partialread = 0;
+                      DBG(">>>>>>>>>>>>>>>>>>>> setting item %i ", request->multibulklen);
+                      char *str2 = malloc(request->bulklen + 1);
+                      memcpy(str2, data + request->lastpos, request->bulklen);                  
+                      str2[request->bulklen] = '\0';
+
+                      DBG("---------------- arg -------------------");
+                      DBG(">>> %i ", request->bulklen);                      
+                      DBG("%s", str2);
+                      DBG("---------------- arg -------------------");
+
+                      PyObject* str = PyString_FromStringAndSize(str2, request->bulklen);                  
+                      PyList_SetItem(request->cmd_list, request->arg_cnt++, str);                   
+                      // NOTE: as far as i understand, PyList_SetItem doesnt incref
+                      // http://stackoverflow.com/questions/3512414/does-this-pylist-appendlist-py-buildvalue-leak
+                      // Py_DECREF(str); <- TODO: why ? if i do this weird things happen
+                      free(str2);                  
+                  }                                
+              }
+
+              
               request->lastpos = request->lastpos + request->bulklen + 2;
               request->parse_phase = RDS_PHASE_START;
               DBG("multibulklen: %i ", request->multibulklen);
               request->multibulklen--;                              
-          }
-    }
+          
+          } // if RDS_PHASE_DATA
+    } // while bulklen
 
     if (request->multibulklen == 0){
       DBG("returning 1");
@@ -252,15 +332,15 @@ void Request_parse(Request* request, const char* data, const size_t data_len)
   // XXX
 #ifdef DEBUG
   puts("--------------------------");
-  printf("request->parse_phase: %i\n", request->parse_phase);
-  printf("datalen:", strlen(data));
-  if (strlen(data) > 100){
+  DBG("request->parse_phase: %i\n", request->parse_phase);
+  DBG("datalen: %i", data_len);
+  if (data_len > 100){
       // char str2[40];
       // memcpy(str2, data, 20);
       // printf("%s \n ", str2);
       printf("< %i - of chars > \n ", strlen(data) );
   } else {
-      DBG(data);  
+      DBG("%s", data);  
   }  
   puts("--------------------------");
 #endif

@@ -13,7 +13,10 @@
 
 #define LISTEN_BACKLOG  1024
 // xxx
+/*
 #define READ_BUFFER_SIZE 64*1024
+*/
+#define READ_BUFFER_SIZE 100
 
 #define Py_XCLEAR(obj) do { if(obj) { Py_DECREF(obj); obj = NULL; } } while(0)
 #define GIL_LOCK(n) PyGILState_STATE _gilstate_##n = PyGILState_Ensure()
