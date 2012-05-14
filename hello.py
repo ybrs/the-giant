@@ -20,14 +20,14 @@ h = {}
 
 def app4(e, s):
     # print ">>>>>>>>>>>>> here"
-    # print e
-    # print "=================="
+    print e
+    print "=================="
     # print s
     # print "=================="
     if (e['REDIS_CMD'][0] == 'SET'):
         h[e['REDIS_CMD'][1]] = e['REDIS_CMD'][2]
     
-    # print h
+    print h
     s('200 ok', [])
     return ['+OK\r\n']
 

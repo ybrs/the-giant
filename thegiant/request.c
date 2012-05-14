@@ -207,12 +207,16 @@ static int parse_multi_line_message(Request* request, const char* data, const si
                   break;
               } else {
                   DBG(">>>>>>>>>>>>>>>>>>>> setting item %i ", request->multibulklen);
-                  char str2[request->bulklen];
+                  char *str2 = malloc(request->bulklen + 1);
                   memcpy(str2, data + request->lastpos, request->bulklen);
+                  str2[request->bulklen] = '\0';
+
                   DBG("---------------- arg -------------------");
                   DBG(">>> %i ", request->bulklen);
                   DBG("%s \n ", str2);
+                  puts(str2);
                   DBG("---------------- arg -------------------");
+
                   PyObject* str = PyString_FromStringAndSize(str2, request->bulklen);                  
                   PyList_SetItem(request->cmd_list, request->arg_cnt++, str);                   
                   // Py_DECREF(str);
