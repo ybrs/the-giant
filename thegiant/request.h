@@ -53,6 +53,9 @@ typedef struct {
   int arg_cnt; // argument counter for redis commands
 
   char *tmpbuffer;
+  char *requestbuffer;
+  int requestbufferlen;
+  
   int partialread;
   int tmpbuffersize;
 
