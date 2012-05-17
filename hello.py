@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import thegiant
 from random import choice
 
@@ -29,8 +30,12 @@ def app4(e, s):
 
     # print h
     s('200 ok', [])
+    # return '*0\r\n'
+    return [None, 'x']
 
-    return ['foobar', 'bar']
+    return ['x', None, 'y']
+
+    return ['foobaryönetmeliği ', 'bar']
 
     return ['+OK\r\n']
 

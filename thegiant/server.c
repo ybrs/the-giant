@@ -305,20 +305,17 @@ send_chunk(Request* request)
   Py_ssize_t bytes_sent;
   DBG("!!!! sending chunk at send_chunk");
   assert(request->current_chunk != NULL);
-  DBG("wrapper 8");
   assert(!(request->current_chunk_p == PyString_GET_SIZE(request->current_chunk)
          && PyString_GET_SIZE(request->current_chunk) != 0));
-  DBG("wrapper 9");
   // DBG(">>>>>>>>>>>>>>>>>>> sending : %s", PyString_AS_STRING(request->current_chunk));
-  DBG("wrapper 10");
-  DBG("wrapper 10.1 %s", PyString_AS_STRING(request->current_chunk));
+  DBG("wrapper 10.1 \n ----------- \n %s \n ------------- \n ", PyString_AS_STRING(request->current_chunk));
 
   bytes_sent = write(
     request->client_fd,
     PyString_AS_STRING(request->current_chunk) + request->current_chunk_p,
     PyString_GET_SIZE(request->current_chunk) - request->current_chunk_p
   );
-  DBG("wrapper 11");
+    
   if(bytes_sent == -1){
       DBG("bytest sent = -1");
       return handle_nonzero_errno(request);

@@ -254,9 +254,9 @@ wsgi_iterable_get_next_chunk(Request* request)
       return NULL;
 
     if(!PyString_Check(next)) {
-      TYPE_ERROR("wsgi iterable items", "strings", next);
-      Py_DECREF(next);
-      return NULL;
+      // TYPE_ERROR("wsgi iterable items", "strings", next);
+      // Py_DECREF(next);
+      // return NULL;
     }
 
     if(PyString_GET_SIZE(next))
@@ -390,29 +390,62 @@ wrap_redis_chunk(PyObject* chunk, bool with_header, int total_elements_count)
    * $10\r\n
    * data\r\n
    */
+  if (chunk == NULL){  
+    // if its a null value, we should send 
+    // $-1\r\n
+    DBG("----- chunk is null");
+    char length_line[100];
+    size_t length_line_size;    
+    if (with_header){
+        length_line_size = sprintf(length_line, "*%i\r\n$-1\r\n", total_elements_count);  
+    } else {
+        length_line_size = sprintf(length_line, "$-1\r\n");  
+    } 
 
-  size_t chunklen = PyString_GET_SIZE(chunk);
-  assert(chunklen);
-  
-  char length_line[100];
-  size_t length_line_size;
+    PyObject* new_chunk = PyString_FromStringAndSize(length_line, length_line_size);
+    return new_chunk;
 
-  if (with_header){
-      length_line_size = sprintf(length_line, "*%i\r\n$%i\r\n", total_elements_count,chunklen);  
   } else {
-      length_line_size = sprintf(length_line, "$%i\r\n", chunklen);  
-  } 
-    
-  char *buf = malloc(length_line_size+chunklen+2);  
-  memcpy(buf, length_line, length_line_size);  
-  // add the actual chunk 
-  memcpy(buf + length_line_size,  PyString_AS_STRING(chunk), chunklen);
-  memcpy(buf + length_line_size + chunklen,  "\r\n", 2);
-    
-  PyObject* new_chunk = PyString_FromStringAndSize(buf, length_line_size+chunklen+2);
 
-  free(buf);
-  return new_chunk;
+    char length_line[100];
+    size_t length_line_size;
+
+    size_t chunklen = PyString_Size(chunk);    
+    if (chunklen == -1){
+        // sending null value...      
+        if (with_header){
+            length_line_size = sprintf(length_line, "*%i\r\n$-1\r\n", total_elements_count);  
+        } else {
+            length_line_size = sprintf(length_line, "$-1\r\n");  
+        } 
+        
+        PyObject* new_chunk = PyString_FromStringAndSize(length_line, length_line_size);
+        return new_chunk;
+
+    } else {
+      assert(chunklen);    
+      
+      if (with_header){
+          length_line_size = sprintf(length_line, "*%i\r\n$%i\r\n", total_elements_count,chunklen);  
+      } else {
+          length_line_size = sprintf(length_line, "$%i\r\n", chunklen);  
+      } 
+      DBG("x: 5 %i", chunklen);
+      char *buf = malloc(length_line_size+chunklen+2);  
+      memcpy(buf, length_line, length_line_size);  
+      // add the actual chunk 
+      memcpy(buf + length_line_size,  PyString_AS_STRING(chunk), chunklen);
+      memcpy(buf + length_line_size + chunklen,  "\r\n", 2);
+        
+      PyObject* new_chunk = PyString_FromStringAndSize(buf, length_line_size+chunklen+2);
+      DBG(">>>>> ", buf);
+      free(buf);
+      return new_chunk;      
+    }
+
+
+  }
+  
 }
 
 
