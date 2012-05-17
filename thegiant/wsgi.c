@@ -105,7 +105,8 @@ wsgi_call_application(Request* request)
     request->iterator = PyObject_GetIter(retval);
     if(request->iterator == NULL)
       return false;
-    first_chunk = wsgi_iterable_get_next_chunk(request);
+    first_chunk = wrap_redis_chunk( wsgi_iterable_get_next_chunk(request), true, PyList_GET_SIZE(retval) ) ;
+    DBG(">>> first chunk");
     if(first_chunk == NULL && PyErr_Occurred())
       return false;
   }
@@ -138,6 +139,7 @@ wsgi_call_application(Request* request)
    * booster because less kernel calls means less kernel call overhead. */
   PyObject* buf = PyString_FromStringAndSize(NULL, 1024);
   Py_ssize_t length = 0; // wsgi_getheaders(request, buf);
+
   // if(length == 0) {
   //   printf(">>>> length: %s\n", length);
   //   Py_DECREF(first_chunk);
@@ -146,7 +148,7 @@ wsgi_call_application(Request* request)
   // }
 
   if(first_chunk == NULL) {
-    // puts(">>> first chunk is null");
+    DBG(">>> first chunk is null");
     _PyString_Resize(&buf, length);
     goto out;
   }
@@ -167,6 +169,7 @@ wsgi_call_application(Request* request)
 
 out:
   request->state.wsgi_call_done = true;
+  DBG("request current chunk %s");
   request->current_chunk = buf;
   request->current_chunk_p = 0;
   return true;
@@ -241,16 +244,24 @@ wsgi_iterable_get_next_chunk(Request* request)
   /* Get the next item out of ``request->iterable``, skipping empty ones. */
   PyObject* next;
   while(true) {
+    DBG("next iterator");
+    
     next = PyIter_Next(request->iterator);
+  
+    DBG("next %s", next);
+
     if(next == NULL)
       return NULL;
+
     if(!PyString_Check(next)) {
       TYPE_ERROR("wsgi iterable items", "strings", next);
       Py_DECREF(next);
       return NULL;
     }
+
     if(PyString_GET_SIZE(next))
       return next;
+
     Py_DECREF(next);
   }
 }
@@ -370,6 +381,40 @@ should_keep_alive(Request* request)
     return true;
   }
 }
+
+PyObject*
+wrap_redis_chunk(PyObject* chunk, bool with_header, int total_elements_count)
+{
+  /* 
+   * for every iterator chunk we need to wrap with
+   * $10\r\n
+   * data\r\n
+   */
+
+  size_t chunklen = PyString_GET_SIZE(chunk);
+  assert(chunklen);
+  
+  char length_line[100];
+  size_t length_line_size;
+
+  if (with_header){
+      length_line_size = sprintf(length_line, "*%i\r\n$%i\r\n", total_elements_count,chunklen);  
+  } else {
+      length_line_size = sprintf(length_line, "$%i\r\n", chunklen);  
+  } 
+    
+  char *buf = malloc(length_line_size+chunklen+2);  
+  memcpy(buf, length_line, length_line_size);  
+  // add the actual chunk 
+  memcpy(buf + length_line_size,  PyString_AS_STRING(chunk), chunklen);
+  memcpy(buf + length_line_size + chunklen,  "\r\n", 2);
+    
+  PyObject* new_chunk = PyString_FromStringAndSize(buf, length_line_size+chunklen+2);
+
+  free(buf);
+  return new_chunk;
+}
+
 
 PyObject*
 wrap_http_chunk_cruft_around(PyObject* chunk)

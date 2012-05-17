@@ -271,7 +271,7 @@ void Request_parse(Request* request, const char* data, const size_t data_len)
 
 
   if (parse_result == 1){
-      DBG("HERE!!!! %i ", parse_result);
+      DBG("parse_result %i ", parse_result);
       on_line_complete(request);  
   }
 
@@ -456,7 +456,7 @@ on_line_complete(Request* request)
   
   PyDict_SetItemString(request->headers, "REDIS_CMD", request->cmd_list);
   if (request->cmd_list == NULL){    
-    puts("WHATTTTTT !!!!!!!!!!!!!11");
+    puts("WHATTTTTT !!!!!!!!!!!!!");
   } else {
     // TODO: ???
     // Py_DECREF(request->cmd_list);      

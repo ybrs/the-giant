@@ -26,9 +26,12 @@ def app4(e, s):
     # print "=================="
     if (e['REDIS_CMD'][0] == 'SET'):
         h[e['REDIS_CMD'][1]] = e['REDIS_CMD'][2]
-    
+
     # print h
     s('200 ok', [])
+
+    return ['foobar', 'bar']
+
     return ['+OK\r\n']
 
 apps = (app1, app2, app3, app4)

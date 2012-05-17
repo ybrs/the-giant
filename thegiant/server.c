@@ -42,6 +42,11 @@ static bool send_chunk(Request*);
 static bool do_sendfile(Request*);
 static bool handle_nonzero_errno(Request*);
 
+
+void ev_io_on_timer(struct ev_loop *loop, ev_timer *w, int revents){
+    DBG("timer called");
+}
+
 void server_run(const char* hostaddr, const int port)
 {
   struct ev_loop* mainloop = ev_default_loop(0);
@@ -55,6 +60,10 @@ void server_run(const char* hostaddr, const int port)
   ev_signal_init(&signal_watcher, ev_signal_on_sigint, SIGINT);
   ev_signal_start(mainloop, &signal_watcher);
 #endif
+
+  // ev_timer_init(&mytimer, ev_io_on_timer, 1., 1.);
+  // ev_timer_start(mainloop, &mytimer);
+
 
   /* This is the program main loop */
   Py_BEGIN_ALLOW_THREADS
@@ -96,6 +105,9 @@ bool server_init(const char* hostaddr, const int port)
   DBG("Listening on %s:%d...", hostaddr, port);
   return true;
 }
+
+
+
 
 static void
 ev_io_on_request(struct ev_loop* mainloop, ev_io* watcher, const int events)
@@ -169,19 +181,21 @@ ev_io_on_read(struct ev_loop* mainloop, ev_io* watcher, const int events)
   if (request->state.error_code) {
     DBG_REQ(request, "Parse error");
     // XXX TODO: send error dammit 
-    request->current_chunk = PyString_FromString("+OK\r\n");
+    request->current_chunk = PyString_FromString("-ERR parse error \r\n");
     // request->current_chunk = PyString_FromString(
     //   http_error_messages[request->state.error_code]);
     assert(request->iterator == NULL);
 
   } else if(request->state.parse_finished) {    
-    if(!wsgi_call_application(request)) {      
+
+    // Here we call our python application
+    if (!wsgi_call_application(request)) {      
       assert(PyErr_Occurred());
       PyErr_Print();
       assert(!request->state.chunked_response);
       Py_XCLEAR(request->iterator);
-      request->current_chunk = PyString_FromString(
-        http_error_messages[HTTP_SERVER_ERROR]);
+      // TODO: return err...
+      request->current_chunk = PyString_FromString("-ERR exception in python \r\n");
     }
     
   } else {
@@ -195,6 +209,7 @@ ev_io_on_read(struct ev_loop* mainloop, ev_io* watcher, const int events)
   ev_io_start(mainloop, &request->ev_watcher);
 
 out:
+  DBG("out !!!!!!!!!!!!!!1");
   GIL_UNLOCK(0);
   return;
 }
@@ -208,29 +223,38 @@ ev_io_on_write(struct ev_loop* mainloop, ev_io* watcher, const int events)
 
   if(request->state.use_sendfile) {
     /* sendfile */
-    if(request->current_chunk && send_chunk(request))
-      goto out;
-    /* abuse current_chunk_p to store the file fd */
-    request->current_chunk_p = PyObject_AsFileDescriptor(request->iterable);
-    if(do_sendfile(request))
-      goto out;
+    // if(request->current_chunk && send_chunk(request))
+    //   goto out;
+    // /* abuse current_chunk_p to store the file fd */
+    // request->current_chunk_p = PyObject_AsFileDescriptor(request->iterable);
+    // if(do_sendfile(request))
+    //   goto out;
   } else {
     /* iterable */
-    if(send_chunk(request))
-      goto out;
+    if(send_chunk(request)){     
+        DBG("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFf ") ;
+        goto out;
+    }
+      
 
     if(request->iterator) {
+      DBG("sending iterator ");
       PyObject* next_chunk;
       next_chunk = wsgi_iterable_get_next_chunk(request);
+      DBG("next_chung %s ", next_chunk);
       if(next_chunk) {
+
         if(request->state.chunked_response) {
-          request->current_chunk = wrap_http_chunk_cruft_around(next_chunk);
+          DBG("in chunked response");
+          request->current_chunk = wrap_http_chunk_cruft_around(next_chunk);          
           Py_DECREF(next_chunk);
         } else {
-          request->current_chunk = next_chunk;
+          DBG("in NOT chunked response");
+          request->current_chunk = wrap_redis_chunk(next_chunk, false, 0);
         }
         assert(request->current_chunk_p == 0);
         goto out;
+
       } else {
         if(PyErr_Occurred()) {
           PyErr_Print();
@@ -279,19 +303,27 @@ send_chunk(Request* request)
 {
   Py_ssize_t chunk_length;
   Py_ssize_t bytes_sent;
-
+  DBG("!!!! sending chunk at send_chunk");
   assert(request->current_chunk != NULL);
+  DBG("wrapper 8");
   assert(!(request->current_chunk_p == PyString_GET_SIZE(request->current_chunk)
          && PyString_GET_SIZE(request->current_chunk) != 0));
+  DBG("wrapper 9");
+  // DBG(">>>>>>>>>>>>>>>>>>> sending : %s", PyString_AS_STRING(request->current_chunk));
+  DBG("wrapper 10");
+  DBG("wrapper 10.1 %s", PyString_AS_STRING(request->current_chunk));
 
   bytes_sent = write(
     request->client_fd,
     PyString_AS_STRING(request->current_chunk) + request->current_chunk_p,
     PyString_GET_SIZE(request->current_chunk) - request->current_chunk_p
   );
-
-  if(bytes_sent == -1)
-    return handle_nonzero_errno(request);
+  DBG("wrapper 11");
+  if(bytes_sent == -1){
+      DBG("bytest sent = -1");
+      return handle_nonzero_errno(request);
+  }
+    
 
   request->current_chunk_p += bytes_sent;
   if(request->current_chunk_p == PyString_GET_SIZE(request->current_chunk)) {

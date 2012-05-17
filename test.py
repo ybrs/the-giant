@@ -10,6 +10,11 @@ r = StrictRedis('localhost', 6380)
 
 
 #s = "1" * (1024 * 64)
-s = "1234567890" * 10
-print "sending ", len(s)
-r.set('foobarbaz' * 2, s)
+# s = "1234567890" * 10
+# print "sending ", len(s)
+# r.set('foobarbaz' * 2, s)
+
+# r.set('xfoo' * 2, s)
+
+c = r.execute_command('FOO', 'foo', 'bar')
+print c
