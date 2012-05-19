@@ -20,5 +20,8 @@ def setgetserver(e, s):
         v = h[e['REDIS_CMD'][1]]
         return '$%s\r\n%s\r\n' % (len(v), v) 
         # return [h[e['REDIS_CMD'][1]]] 
+    elif (e['REDIS_CMD'][0] == 'MGET'):
+        # print e
+        return ["foo", "bar"]
 
 thegiant.run(setgetserver, '0.0.0.0', 6380)

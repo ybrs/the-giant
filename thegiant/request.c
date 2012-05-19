@@ -26,8 +26,8 @@ Request* Request_new(int client_fd, const char* client_addr)
 #endif
   request->client_fd = client_fd;
   request->client_addr = PyString_FromString(client_addr);
-  http_parser_init((http_parser*)&request->parser, HTTP_REQUEST);
-  request->parser.parser.data = request;
+  // http_parser_init((http_parser*)&request->parser, HTTP_REQUEST);
+  // request->parser.parser.data = request;
   Request_reset(request);
   return request;
 }
@@ -36,7 +36,7 @@ void Request_reset(Request* request)
 {
   memset(&request->state, 0, sizeof(Request) - (size_t)&((Request*)NULL)->state);
   request->state.response_length_unknown = true;
-  request->parser.body = (string){NULL, 0};
+  //request->parser.body = (string){NULL, 0};
   request->parse_phase = RDS_PHASE_CONNECT;
   request->multibulklen = 0;  
   // we make room for at least buffer size...
@@ -557,11 +557,11 @@ PyDict_ReplaceKey(PyObject* dict, PyObject* old_key, PyObject* new_key)
 }
 
 
-static http_parser_settings
-parser_settings = {
-  on_message_begin, on_path, on_query_string, NULL, NULL, on_header_field,
-  on_header_value, on_headers_complete, on_body, on_message_complete
-};
+// static http_parser_settings
+// parser_settings = {
+//   on_message_begin, on_path, on_query_string, NULL, NULL, on_header_field,
+//   on_header_value, on_headers_complete, on_body, on_message_complete
+// };
 
 void _initialize_request_module(const char* server_host, const int server_port)
 {

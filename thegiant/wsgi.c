@@ -134,6 +134,7 @@ wsgi_call_application(Request* request)
         request->state.keep_alive = false;
     }
 
+
   /* Get the headers and concatenate the first body chunk.
    * In the first place this makes the code more simple because afterwards
    * we can throw away the first chunk PyObject; but it also is an optimization:
@@ -369,20 +370,22 @@ PyTypeObject StartResponse_Type = {
 static inline bool
 should_keep_alive(Request* request)
 {
-  if(!(request->parser.parser.flags & F_KEEP_ALIVE)) {
-    /* Only keep-alive if the client requested it explicitly */
     return false;
-  }
-  if(request->state.response_length_unknown) {
-    /* If the client wants to keep-alive the connection but we don't know
-     * the response length, we can use Transfer-Encoding: chunked on HTTP/1.1.
-     * On HTTP/1.0 no such thing exists so there's no other option than closing
-     * the connection to indicate the response end. */
-    return have_http11(request->parser.parser);
-  } else {
-    /* If the response length is known we can keep-alive for both 1.0 and 1.1 */
-    return true;
-  }
+  // /*
+  // if(!(request->parser.parser.flags & F_KEEP_ALIVE)) {
+  //   /* Only keep-alive if the client requested it explicitly */
+  //   return false;
+  // }
+  // if(request->state.response_length_unknown) {
+  //   /* If the client wants to keep-alive the connection but we don't know
+  //    * the response length, we can use Transfer-Encoding: chunked on HTTP/1.1.
+  //    * On HTTP/1.0 no such thing exists so there's no other option than closing
+  //    * the connection to indicate the response end. */
+  //   return have_http11(request->parser.parser);
+  // } else {
+  //   /* If the response length is known we can keep-alive for both 1.0 and 1.1 */
+  //   return true;
+  // }
 }
 
 PyObject*
