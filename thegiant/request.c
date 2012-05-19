@@ -2,6 +2,7 @@
 #include <cStringIO.h>
 #include "request.h"
 #include "filewrapper.h"
+#include "assert.h"
 
 static inline void PyDict_ReplaceKey(PyObject* dict, PyObject* k1, PyObject* k2);
 static PyObject* wsgi_http_header(string header);
@@ -221,7 +222,7 @@ static int parse_multi_line_message(Request* request, const char* data, const si
 
 
 static int parse_single_line_message(Request* request, const char* data, const size_t data_len){
-  return true;
+  return -2;
 }
 
 
@@ -243,6 +244,7 @@ void Request_parse(Request* request, const char* data, const size_t data_len)
   puts("--------------------------");
 #endif
 */
+  // exit(0);
 
   int parse_result;
 
@@ -251,7 +253,13 @@ void Request_parse(Request* request, const char* data, const size_t data_len)
   request->requestbuffer = realloc(request->requestbuffer, request->requestbufferlen+data_len);
   memcpy(request->requestbuffer + request->requestbufferlen, data, data_len);
   request->requestbufferlen += data_len;
-  parse_result = parse_multi_line_message(request, request->requestbuffer, request->requestbufferlen);
+
+  if (request->requestbuffer[0] == '*'){
+      parse_result = parse_multi_line_message(request, request->requestbuffer, request->requestbufferlen);
+  } else {
+      parse_result = parse_single_line_message(request, request->requestbuffer, request->requestbufferlen);
+  }
+  
   DBG(">>>>> parse_result %i", parse_result);
 
   // -2 is for an unrecoverable protocol error, we send a bad request and return...
@@ -322,7 +330,8 @@ void Request_parse(Request* request, const char* data, const size_t data_len)
   } while(0)
 
 static int on_message_begin(http_parser* parser)
-{
+{  
+  assert(false);
   REQUEST->headers = PyDict_New();
   PARSER->field = (string){NULL, 0};
   PARSER->value = (string){NULL, 0};
@@ -331,6 +340,7 @@ static int on_message_begin(http_parser* parser)
 
 static int on_path(http_parser* parser, char* path, size_t len)
 {
+  assert(false);
   if(!(len = unquote_url_inplace(path, len)))
     return 1;
   _set_header_free_value(_PATH_INFO, PyString_FromStringAndSize(path, len));
@@ -339,12 +349,14 @@ static int on_path(http_parser* parser, char* path, size_t len)
 
 static int on_query_string(http_parser* parser, const char* query, size_t len)
 {
+  assert(false);
   _set_header_free_value(_QUERY_STRING, PyString_FromStringAndSize(query, len));
   return 0;
 }
 
 static int on_header_field(http_parser* parser, const char* field, size_t len)
 {
+  assert(false);
   if(PARSER->value.data) {
     /* Store previous header and start a new one */
     _set_header_free_both(
@@ -363,6 +375,7 @@ static int on_header_field(http_parser* parser, const char* field, size_t len)
 static int
 on_header_value(http_parser* parser, const char* value, size_t len)
 {
+  assert(false);
   if(PARSER->value.data) {
     UPDATE_LENGTH(value);
   } else {
@@ -375,6 +388,7 @@ on_header_value(http_parser* parser, const char* value, size_t len)
 static int
 on_headers_complete(http_parser* parser)
 {
+  assert(false);
   if(PARSER->field.data) {
     _set_header_free_both(
       wsgi_http_header(PARSER->field),
@@ -387,6 +401,7 @@ on_headers_complete(http_parser* parser)
 static int
 on_body(http_parser* parser, const char* data, const size_t len)
 {
+  assert(false);
   Iobject* body;
 
   body = (Iobject*)PyDict_GetItem(REQUEST->headers, _wsgi_input);
@@ -411,6 +426,7 @@ on_body(http_parser* parser, const char* data, const size_t len)
 static int
 on_message_complete(http_parser* parser)
 {
+  assert(false);
   /* HTTP_CONTENT_{LENGTH,TYPE} -> CONTENT_{LENGTH,TYPE} */
   PyDict_ReplaceKey(REQUEST->headers, _HTTP_CONTENT_LENGTH, _CONTENT_LENGTH);
   PyDict_ReplaceKey(REQUEST->headers, _HTTP_CONTENT_TYPE, _CONTENT_TYPE);
@@ -505,6 +521,7 @@ on_line_complete(Request* request)
 static PyObject*
 wsgi_http_header(string header)
 {
+  assert(false);
   PyObject* obj = PyString_FromStringAndSize(NULL, header.len+strlen("HTTP_"));
   char* dest = PyString_AS_STRING(obj);
 

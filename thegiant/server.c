@@ -231,12 +231,10 @@ ev_io_on_write(struct ev_loop* mainloop, ev_io* watcher, const int events)
     //   goto out;
   } else {
     /* iterable */
-    if(send_chunk(request)){     
-        DBG("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFf ") ;
+    if(send_chunk(request)){             
         goto out;
     }
       
-
     if(request->iterator) {
       DBG("sending iterator ");
       PyObject* next_chunk;

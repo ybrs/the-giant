@@ -3,6 +3,8 @@ import glob
 
 from setuptools import setup, find_packages, Extension
 
+undef_macros = ['NDEBUG']
+
 SOURCE_FILES = [os.path.join('http-parser', 'http_parser.c')] + \
                glob.glob(os.path.join('thegiant', '*.c'))
 
@@ -15,6 +17,8 @@ thegiant_extension = Extension(
                      ('WANT_SIGINT_HANDLING', '1')
                       ], 
 #                     , ('DEBUG', '1')],
+    # assert should assert                     
+    undef_macros = undef_macros,                                           
     extra_compile_args = ['-std=c99', '-fno-strict-aliasing', '-Wall',
                           '-Wextra', '-Wno-unused', '-g', '-fPIC']
 )
@@ -33,4 +37,5 @@ setup(
                     'Programming Language :: Python',
                     'Topic :: Internet :: WWW/HTTP :: WSGI :: Server'],
     ext_modules  = [thegiant_extension]
+    
 )
