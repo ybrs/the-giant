@@ -1,8 +1,6 @@
 LICENSE
 MANIFEST.in
 setup.py
-http-parser/http_parser.c
-http-parser/http_parser.h
 thegiant/25compat.h
 thegiant/common.c
 thegiant/common.h

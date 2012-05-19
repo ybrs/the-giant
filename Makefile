@@ -4,15 +4,10 @@ BUILD_DIR	= build
 PYTHON_INCLUDE	= $(shell python2-config --include)
 PYTHON_LDFLAGS	= $(shell python2-config --ldflags)
 
-HTTP_PARSER_DIR	= http-parser
-HTTP_PARSER_OBJ = $(HTTP_PARSER_DIR)/http_parser.o
-HTTP_PARSER_SRC = $(HTTP_PARSER_DIR)/http_parser.c
-
-objects		= $(HTTP_PARSER_OBJ) \
-		  $(patsubst $(SOURCE_DIR)/%.c, $(BUILD_DIR)/%.o, \
+objects		= $(patsubst $(SOURCE_DIR)/%.c, $(BUILD_DIR)/%.o, \
 		             $(wildcard $(SOURCE_DIR)/*.c))
 
-CPPFLAGS	+= $(PYTHON_INCLUDE) -I . -I $(SOURCE_DIR) #-I $(HTTP_PARSER_DIR)
+CPPFLAGS	+= $(PYTHON_INCLUDE) -I . -I $(SOURCE_DIR) 
 CFLAGS		+= $(FEATURES) -std=c99 -fno-strict-aliasing -Wall -Wextra \
 		   -Wno-unused -g -O0 -fPIC
 LDFLAGS		+= $(PYTHON_LDFLAGS) -l ev -shared
@@ -35,7 +30,7 @@ print-env:
 	@echo CFLAGS=$(CFLAGS)
 	@echo CPPFLAGS=$(CPPFLAGS)
 	@echo LDFLAGS=$(LDFLAGS)
-	@echo args=$(HTTP_PARSER_SRC) $(wildcard $(SOURCE_DIR)/*.c)
+	@echo args=$(wildcard $(SOURCE_DIR)/*.c)
 
 opt: clean
 	CFLAGS='-O3' make
@@ -103,5 +98,3 @@ memwatch:
 upload:
 	python2 setup.py sdist upload
 
-$(HTTP_PARSER_OBJ):
-	$(MAKE) -C $(HTTP_PARSER_DIR) http_parser.o CFLAGS_DEBUG_EXTRA=-fPIC CFLAGS_FAST_EXTRA=-fPIC

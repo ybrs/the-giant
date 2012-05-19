@@ -2,7 +2,6 @@
 #define __request_h__
 
 #include <ev.h>
-#include "http_parser.h"
 #include "common.h"
 
 void _initialize_request_module(const char* host, const int port);
@@ -18,8 +17,7 @@ typedef struct {
   unsigned use_sendfile : 1;
 } request_state;
 
-typedef struct {
-  http_parser parser;
+typedef struct {  
   string field;
   string value;
   string body;
