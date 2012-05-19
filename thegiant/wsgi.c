@@ -16,120 +16,118 @@ typedef struct {
 bool
 wsgi_call_application(Request* request)
 {
-  // puts(">>>> 1.1");
-  StartResponse* start_response = PyObject_NEW(StartResponse, &StartResponse_Type);
-  // puts(">>>> 1.2");
-  start_response->request = request;
-  // puts(">>>> 1.3");
-  /* From now on, `headers` stores the _response_ headers
-   * (passed by the WSGI app) rather than the _request_ headers */
-  PyObject* request_headers = request->headers;  
-  if (request_headers == NULL){
-    // puts("request_headers is null");
-  }
+    StartResponse* start_response = PyObject_NEW(StartResponse, &StartResponse_Type);
+    start_response->request = request;
+    /* From now on, `headers` stores the _response_ headers
+    * (passed by the WSGI app) rather than the _request_ headers */
+    PyObject* request_headers = request->headers;  
+    if (request_headers == NULL){
+        // puts("request_headers is null");
+    }
+    
+    request->headers = NULL;
+  
+    /* application(environ, start_response) call */
+    PyObject* retval = PyObject_CallFunctionObjArgs(
+        wsgi_app,
+        request_headers,
+        start_response,
+        NULL /* sentinel */
+    );
 
-  request->headers = NULL;
-  // puts(">>>> 1.4");
-  /* application(environ, start_response) call */
-  PyObject* retval = PyObject_CallFunctionObjArgs(
-    wsgi_app,
-    request_headers,
-    start_response,
-    NULL /* sentinel */
-  );
-  // puts(">>>> 1.5");
-  Py_DECREF(request_headers);
-  // puts(">>>> 1.5.1");
-  Py_DECREF(start_response);
-  // puts(">>>> 1.6");
-  if(retval == NULL)
-    return false;
+    Py_DECREF(request_headers);
+    Py_DECREF(start_response);
+    
+    if(retval == NULL)
+        return false;
 
-  /* The following code is somewhat magic, so worth an explanation.
-   *
-   * If the application we called was a generator, we have to call .next() on
-   * it before we do anything else because that may execute code that
-   * invokes `start_response` (which might not have been invoked yet).
-   * Think of the following scenario:
-   *
-   *   def app(environ, start_response):
-   *     start_response('200 Ok', ...)
-   *     yield 'Hello World'
-   *
-   * That would make `app` return an iterator (more precisely, a generator).
-   * Unfortunately, `start_response` wouldn't be called until the first item
-   * of that iterator is requested; `start_response` however has to be called
-   * _before_ the wsgi body is sent, because it passes the HTTP headers.
-   *
-   * If the application returned a list this would not be required of course,
-   * but special-handling is painful - especially in C - so here's one generic
-   * way to solve the problem:
-   *
-   * Look into the returned iterator in any case. This allows us to do other
-   * optimizations, for example if the returned value is a list with exactly
-   * one string in it, we can pick the string and throw away the list so bjoern
-   * does not have to come back again and look into the iterator a second time.
-   */
-  PyObject* first_chunk;
-  // TODO..... 
-  if(PyList_Check(retval) && PyList_GET_SIZE(retval) == 1 &&
-     PyString_Check(PyList_GET_ITEM(retval, 0)))
-  {
-    /* Optimize the most common case, a single string in a list: */
-    PyObject* tmp = PyList_GET_ITEM(retval, 0);
-    Py_INCREF(tmp);
-    Py_DECREF(retval);
-    retval = tmp;
-    goto string; /* eeevil */
-  } else if(PyString_Check(retval)) {
+    /* The following code is somewhat magic, so worth an explanation.
+    *
+    * If the application we called was a generator, we have to call .next() on
+    * it before we do anything else because that may execute code that
+    * invokes `start_response` (which might not have been invoked yet).
+    * Think of the following scenario:
+    *
+    *   def app(environ, start_response):
+    *     start_response('200 Ok', ...)
+    *     yield 'Hello World'
+    *
+    * That would make `app` return an iterator (more precisely, a generator).
+    * Unfortunately, `start_response` wouldn't be called until the first item
+    * of that iterator is requested; `start_response` however has to be called
+    * _before_ the wsgi body is sent, because it passes the HTTP headers.
+    *
+    * If the application returned a list this would not be required of course,
+    * but special-handling is painful - especially in C - so here's one generic
+    * way to solve the problem:
+    *
+    * Look into the returned iterator in any case. This allows us to do other
+    * optimizations, for example if the returned value is a list with exactly
+    * one string in it, we can pick the string and throw away the list so bjoern
+    * does not have to come back again and look into the iterator a second time.
+    */
+    PyObject* first_chunk;
+    // TODO..... 
+    // if(PyList_Check(retval) && PyList_GET_SIZE(retval) == 1 &&
+    //     PyString_Check(PyList_GET_ITEM(retval, 0)))
+    // {
+    //     /* Optimize the most common case, a single string in a list: */
+    //     PyObject* tmp = PyList_GET_ITEM(retval, 0);
+    //     Py_INCREF(tmp);
+    //     Py_DECREF(retval);
+    //     retval = tmp;
+    //     goto string; /* eeevil */
+    // } else 
+
+    if (PyString_Check(retval)) {
     /* According to PEP 333 strings should be handled like any other iterable,
      * i.e. sending the response item for item. "item for item" means
      * "char for char" if you have a string. -- I'm not that stupid. */    
-    string:
-      if(PyString_GET_SIZE(retval)) {
-        first_chunk = retval;
-      } else {
+        string:
+            if(PyString_GET_SIZE(retval)) {
+                first_chunk = retval;
+            } else {
+                Py_DECREF(retval);
+                first_chunk = NULL;
+            }
+    } else if(FileWrapper_CheckExact(retval)) {
+        request->state.use_sendfile = true;
+        request->iterable = ((FileWrapper*)retval)->file;
+        Py_INCREF(request->iterable);
         Py_DECREF(retval);
+        request->iterator = NULL;
         first_chunk = NULL;
-      }
-  } else if(FileWrapper_CheckExact(retval)) {
-    request->state.use_sendfile = true;
-    request->iterable = ((FileWrapper*)retval)->file;
-    Py_INCREF(request->iterable);
-    Py_DECREF(retval);
-    request->iterator = NULL;
-    first_chunk = NULL;
-  } else {
-    /* Generic iterable (list of length != 1, generator, ...) */
-    request->iterable = retval;
-    request->iterator = PyObject_GetIter(retval);
-    if(request->iterator == NULL)
-      return false;
-    first_chunk = wrap_redis_chunk( wsgi_iterable_get_next_chunk(request), true, PyList_GET_SIZE(retval) ) ;
-    DBG(">>> first chunk");
-    if(first_chunk == NULL && PyErr_Occurred())
-      return false;
-  }
+    } else {
+        /* Generic iterable (list of length != 1, generator, ...) */
+        request->iterable = retval;
+        request->iterator = PyObject_GetIter(retval);
+        if(request->iterator == NULL)
+            return false;
+        first_chunk = wrap_redis_chunk( wsgi_iterable_get_next_chunk(request), true, PyList_GET_SIZE(retval) ) ;
+        DBG(">>> first chunk");
+        if(first_chunk == NULL && PyErr_Occurred())
+            return false;
+        }
 
-  if(request->headers == NULL) {
-    /* It is important that this check comes *after* the call to
-     * wsgi_iterable_get_next_chunk(), because in case the WSGI application
-     * was an iterator, there's no chance start_response could be called
-     * before. See above if you don't understand what I say. */
-    PyErr_SetString(
-      PyExc_RuntimeError,
-      "wsgi application returned before start_response was called"
-    );
-    Py_DECREF(first_chunk);
-    return false;
-  }
+        // if(request->headers == NULL) {
+        // /* It is important that this check comes *after* the call to
+        //  * wsgi_iterable_get_next_chunk(), because in case the WSGI application
+        //  * was an iterator, there's no chance start_response could be called
+        //  * before. See above if you don't understand what I say. */
+        //     PyErr_SetString(
+        //         PyExc_RuntimeError,
+        //         "wsgi application returned before start_response was called"
+        //     );
+        //     Py_DECREF(first_chunk);
+        //     return false;
+        // }
 
-  if(should_keep_alive(request)) {
-    request->state.chunked_response = request->state.response_length_unknown;
-    request->state.keep_alive = true;
-  } else {
-    request->state.keep_alive = false;
-  }
+        if(should_keep_alive(request)) {
+            request->state.chunked_response = request->state.response_length_unknown;
+            request->state.keep_alive = true;
+        } else {
+            request->state.keep_alive = false;
+        }
 
   /* Get the headers and concatenate the first body chunk.
    * In the first place this makes the code more simple because afterwards

@@ -21,7 +21,7 @@ h = {}
 
 def app4(e, s):
     # print ">>>>>>>>>>>>> here"
-    print e
+    #print e
     # print "=================="
     # print s
     # print "=================="
@@ -31,11 +31,11 @@ def app4(e, s):
     # print h
     s('200 ok', [])
     # return '*0\r\n'
-    return [None, 'x']
+    # return [None, 'x']
 
-    return ['x', None, 'y']
+    # return ['x', None, 'y']
 
-    return ['foobaryönetmeliği ', 'bar']
+    # return ['foobaryönetmeliği ', 'bar']
 
     return ['+OK\r\n']
 
