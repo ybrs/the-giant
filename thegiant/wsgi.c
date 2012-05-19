@@ -38,8 +38,9 @@ wsgi_call_application(Request* request)
     Py_DECREF(request_headers);
     Py_DECREF(start_response);
     
-    if(retval == NULL)
+    if(retval == NULL){
         return false;
+    }        
 
     /* The following code is somewhat magic, so worth an explanation.
     *
@@ -101,33 +102,37 @@ wsgi_call_application(Request* request)
         /* Generic iterable (list of length != 1, generator, ...) */
         request->iterable = retval;
         request->iterator = PyObject_GetIter(retval);
-        if(request->iterator == NULL)
+        if(request->iterator == NULL){
             return false;
+        }
+
         first_chunk = wrap_redis_chunk( wsgi_iterable_get_next_chunk(request), true, PyList_GET_SIZE(retval) ) ;
         DBG(">>> first chunk");
-        if(first_chunk == NULL && PyErr_Occurred())
+        if (first_chunk == NULL && PyErr_Occurred()){
             return false;
         }
+            
+    }
 
-        // if(request->headers == NULL) {
-        // /* It is important that this check comes *after* the call to
-        //  * wsgi_iterable_get_next_chunk(), because in case the WSGI application
-        //  * was an iterator, there's no chance start_response could be called
-        //  * before. See above if you don't understand what I say. */
-        //     PyErr_SetString(
-        //         PyExc_RuntimeError,
-        //         "wsgi application returned before start_response was called"
-        //     );
-        //     Py_DECREF(first_chunk);
-        //     return false;
-        // }
+    // if(request->headers == NULL) {
+    // /* It is important that this check comes *after* the call to
+    //  * wsgi_iterable_get_next_chunk(), because in case the WSGI application
+    //  * was an iterator, there's no chance start_response could be called
+    //  * before. See above if you don't understand what I say. */
+    //     PyErr_SetString(
+    //         PyExc_RuntimeError,
+    //         "wsgi application returned before start_response was called"
+    //     );
+    //     Py_DECREF(first_chunk);
+    //     return false;
+    // }
 
-        if(should_keep_alive(request)) {
-            request->state.chunked_response = request->state.response_length_unknown;
-            request->state.keep_alive = true;
-        } else {
-            request->state.keep_alive = false;
-        }
+    if(should_keep_alive(request)) {
+        request->state.chunked_response = request->state.response_length_unknown;
+        request->state.keep_alive = true;
+    } else {
+        request->state.keep_alive = false;
+    }
 
   /* Get the headers and concatenate the first body chunk.
    * In the first place this makes the code more simple because afterwards
@@ -135,8 +140,8 @@ wsgi_call_application(Request* request)
    * At least for small responses, the complete response could be sent with
    * one send() call (in server.c:ev_io_on_write) which is a (tiny) performance
    * booster because less kernel calls means less kernel call overhead. */
-  PyObject* buf = PyString_FromStringAndSize(NULL, 1024);
-  Py_ssize_t length = 0; // wsgi_getheaders(request, buf);
+    PyObject* buf = PyString_FromStringAndSize(NULL, 1024);
+    Py_ssize_t length = 0; // wsgi_getheaders(request, buf);
 
   // if(length == 0) {
   //   printf(">>>> length: %s\n", length);
@@ -145,32 +150,32 @@ wsgi_call_application(Request* request)
   //   return false;
   // }
 
-  if(first_chunk == NULL) {
-    DBG(">>> first chunk is null");
-    _PyString_Resize(&buf, length);
-    goto out;
-  }
+    if(first_chunk == NULL) {
+        DBG(">>> first chunk is null");
+        _PyString_Resize(&buf, length);
+        goto out;
+    }
 
-  if(request->state.chunked_response) {
-    PyObject* new_chunk = wrap_http_chunk_cruft_around(first_chunk);
+    if(request->state.chunked_response) {
+        PyObject* new_chunk = wrap_http_chunk_cruft_around(first_chunk);
+        Py_DECREF(first_chunk);
+        assert(PyString_GET_SIZE(new_chunk) >= PyString_GET_SIZE(first_chunk) + 5);
+        first_chunk = new_chunk;
+    }
+
+    assert(buf);
+    _PyString_Resize(&buf, length + PyString_GET_SIZE(first_chunk));
+    memcpy(PyString_AS_STRING(buf)+length, PyString_AS_STRING(first_chunk),
+    PyString_GET_SIZE(first_chunk));
+
     Py_DECREF(first_chunk);
-    assert(PyString_GET_SIZE(new_chunk) >= PyString_GET_SIZE(first_chunk) + 5);
-    first_chunk = new_chunk;
-  }
-
-  assert(buf);
-  _PyString_Resize(&buf, length + PyString_GET_SIZE(first_chunk));
-  memcpy(PyString_AS_STRING(buf)+length, PyString_AS_STRING(first_chunk),
-         PyString_GET_SIZE(first_chunk));
-
-  Py_DECREF(first_chunk);
 
 out:
-  request->state.wsgi_call_done = true;
-  DBG("request current chunk %s");
-  request->current_chunk = buf;
-  request->current_chunk_p = 0;
-  return true;
+    request->state.wsgi_call_done = true;
+    DBG("request current chunk %s");
+    request->current_chunk = buf;
+    request->current_chunk_p = 0;
+    return true;
 }
 
 static inline bool
