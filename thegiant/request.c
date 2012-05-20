@@ -143,7 +143,7 @@ static int parse_multi_line_message(Request* request, const char* data, const si
                         // now parse data line...            
                         pos = (newline - data)+2;
 
-                        if (ll <= 0) {
+                        if (ll < 0) {
                             // handle $-1\r\n ?
                             // protocol error !!!
                             // c->querybuf = sdsrange(c->querybuf,pos,-1);                
@@ -171,7 +171,7 @@ static int parse_multi_line_message(Request* request, const char* data, const si
                 }
 
                 // do we have enough data ???
-                if ( (int)(data_len - request->lastpos) < (unsigned)(request->bulklen+2)) {
+                if ( (int)(data_len - request->lastpos) < (int)(request->bulklen+2)) {
                     /* Not enough data (+2 == trailing \r\n) */
                     DBG("------ !!!!! not enough data %i ", request->multibulklen);                    
                     return -1;
@@ -223,24 +223,6 @@ static int parse_single_line_message(Request* request, const char* data, const s
 
 void Request_parse(Request* request, const char* data, const size_t data_len)
 {
-/*
-#ifdef DEBUG
-  puts("--------------------------");
-  DBG("request->parse_phase: %i\n", request->parse_phase);
-  DBG("datalen: %i", data_len);
-  if (data_len > 100){
-      // char str2[40];
-      // memcpy(str2, data, 20);
-      // printf("%s \n ", str2);
-      printf("< %i - of chars > \n ", strlen(data) );
-  } else {
-      DBG("%s", data);  
-  }  
-  puts("--------------------------");
-#endif
-*/
-  // exit(0);
-
   int parse_result;
 
 

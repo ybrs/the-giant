@@ -23,12 +23,6 @@
 #define GIL_UNLOCK(n) PyGILState_Release(_gilstate_##n)
 
 static int sockfd;
-static const char* http_error_messages[4] = {
-  NULL, /* Error codes start at 1 because 0 means "no error" */
-  "HTTP/1.1 400 Bad Request\r\n\r\n",
-  "HTTP/1.1 406 Length Required\r\n\r\n",
-  "HTTP/1.1 500 Internal Server Error\r\n\r\n"
-};
 
 typedef void ev_io_callback(struct ev_loop*, ev_io*, const int);
 #if WANT_SIGINT_HANDLING
@@ -47,7 +41,7 @@ void ev_io_on_timer(struct ev_loop *loop, ev_timer *w, int revents){
     DBG("timer called");
 }
 
-void server_run(const char* hostaddr, const int port)
+void server_run(void)//(const char* hostaddr, const int port)
 {
   struct ev_loop* mainloop = ev_default_loop(0);
 
@@ -182,8 +176,7 @@ ev_io_on_read(struct ev_loop* mainloop, ev_io* watcher, const int events)
     DBG_REQ(request, "Parse error");
     // XXX TODO: send error dammit 
     request->current_chunk = PyString_FromString("-ERR parse error \r\n");
-    // request->current_chunk = PyString_FromString(
-    //   http_error_messages[request->state.error_code]);
+    // request->current_chunk = PyString_FromString(    
     assert(request->iterator == NULL);
 
   } else if(request->state.parse_finished) {    
@@ -208,8 +201,7 @@ ev_io_on_read(struct ev_loop* mainloop, ev_io* watcher, const int events)
              request->client_fd, EV_WRITE);
   ev_io_start(mainloop, &request->ev_watcher);
 
-out:
-  DBG("out !!!!!!!!!!!!!!1");
+out:  
   GIL_UNLOCK(0);
   return;
 }
@@ -231,31 +223,27 @@ ev_io_on_write(struct ev_loop* mainloop, ev_io* watcher, const int events)
     //   goto out;
   } else {
     /* iterable */
-    if(send_chunk(request)){             
+    if (send_chunk(request)){             
         goto out;
     }
       
-    if(request->iterator) {
-      DBG("sending iterator ");
+    if(request->iterator) {      
       PyObject* next_chunk;
-      next_chunk = wsgi_iterable_get_next_chunk(request);
-      DBG("next_chung %s ", next_chunk);
-      if(next_chunk) {
-
-        if(request->state.chunked_response) {
-          DBG("in chunked response");
-          request->current_chunk = wrap_http_chunk_cruft_around(next_chunk);          
-          Py_DECREF(next_chunk);
-        } else {
-          DBG("in NOT chunked response");
+      DBG(">>>> getting next chunk");
+      next_chunk = wsgi_iterable_get_next_chunk(request);      
+      if(next_chunk != NULL) {
+          // DBG(">>>>>>>>>>>> writing next_chunk %s ", PyString_AS_STRING(next_chunk) );
           request->current_chunk = wrap_redis_chunk(next_chunk, false, 0);
-        }
-        assert(request->current_chunk_p == 0);
-        goto out;
-
-      } else {
-        if(PyErr_Occurred()) {
+          if (PyErr_Occurred()) {
+            assert(false);
+          }
+          assert(request->current_chunk_p == 0);
+          goto out;
+      } else {        
+        if (PyErr_Occurred()) {
+          DBG("============= exception ====================");
           PyErr_Print();
+          DBG("============= // exception ====================");
           /* We can't do anything graceful here because at least one
            * chunk is already sent... just close the connection */
           DBG_REQ(request, "Exception in iterator, can not recover");
@@ -263,12 +251,13 @@ ev_io_on_write(struct ev_loop* mainloop, ev_io* watcher, const int events)
           close(request->client_fd);
           Request_free(request);
           goto out;
-        }
+        } 
         Py_CLEAR(request->iterator);
       }
     }
 
     if(request->state.chunked_response) {
+      assert(false);
       /* We have to send a terminating empty chunk + \r\n */
       request->current_chunk = PyString_FromString("0\r\n\r\n");
       assert(request->current_chunk_p == 0);
@@ -300,13 +289,10 @@ static bool
 send_chunk(Request* request)
 {
   Py_ssize_t chunk_length;
-  Py_ssize_t bytes_sent;
-  DBG("!!!! sending chunk at send_chunk");
+  Py_ssize_t bytes_sent;  
   assert(request->current_chunk != NULL);
   assert(!(request->current_chunk_p == PyString_GET_SIZE(request->current_chunk)
          && PyString_GET_SIZE(request->current_chunk) != 0));
-  // DBG(">>>>>>>>>>>>>>>>>>> sending : %s", PyString_AS_STRING(request->current_chunk));
-  DBG("wrapper 10.1 \n ----------- \n %s \n ------------- \n ", PyString_AS_STRING(request->current_chunk));
 
   bytes_sent = write(
     request->client_fd,
@@ -315,7 +301,6 @@ send_chunk(Request* request)
   );
     
   if(bytes_sent == -1){
-      DBG("bytest sent = -1");
       return handle_nonzero_errno(request);
   }
     

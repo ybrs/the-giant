@@ -8,7 +8,7 @@ h = {}
 
 def setgetserver(e, s):
     # print ">>>>>>>>>>>>> here"
-    #print e
+    print e
     # print "=================="
     # print s
     # print "=================="
@@ -22,6 +22,7 @@ def setgetserver(e, s):
         # return [h[e['REDIS_CMD'][1]]] 
     elif (e['REDIS_CMD'][0] == 'MGET'):
         # print e
-        return ["foo", "bar"]
+        return ['y', None, '', 'x']
+    return 10
 
 thegiant.run(setgetserver, '0.0.0.0', 6380)
