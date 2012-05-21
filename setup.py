@@ -14,7 +14,7 @@ thegiant_extension = Extension(
     include_dirs  = ['http-parser'],
     define_macros = [('WANT_SENDFILE', '1'),
                      ('WANT_SIGINT_HANDLING', '1')
-                      #], 
+#                      ], 
                      , ('DEBUG', '1')],
     # assert should assert                     
     undef_macros = undef_macros,                                           

@@ -3,7 +3,7 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #ifdef WANT_SIGINT_HANDLING
-# include <sys/signal.h>
+#include <sys/signal.h>
 #endif
 #include <sys/sendfile.h>
 #include <ev.h>
@@ -43,61 +43,63 @@ void ev_io_on_timer(struct ev_loop *loop, ev_timer *w, int revents){
 
 void server_run(void)//(const char* hostaddr, const int port)
 {
-  struct ev_loop* mainloop = ev_default_loop(0);
+    struct ev_loop* mainloop = ev_default_loop(0);
+    ev_io accept_watcher;
+    ev_io_init(&accept_watcher, ev_io_on_request, sockfd, EV_READ);
+    ev_io_start(mainloop, &accept_watcher);
 
-  ev_io accept_watcher;
-  ev_io_init(&accept_watcher, ev_io_on_request, sockfd, EV_READ);
-  ev_io_start(mainloop, &accept_watcher);
+    #if WANT_SIGINT_HANDLING
+        ev_signal signal_watcher;
+        ev_signal_init(&signal_watcher, ev_signal_on_sigint, SIGINT);
+        ev_signal_start(mainloop, &signal_watcher);
+    #endif  
 
-#if WANT_SIGINT_HANDLING
-  ev_signal signal_watcher;
-  ev_signal_init(&signal_watcher, ev_signal_on_sigint, SIGINT);
-  ev_signal_start(mainloop, &signal_watcher);
-#endif
+    // ev_timer_init(&mytimer, ev_io_on_timer, 1., 1.);
+    // ev_timer_start(mainloop, &mytimer);
 
-  // ev_timer_init(&mytimer, ev_io_on_timer, 1., 1.);
-  // ev_timer_start(mainloop, &mytimer);
-
-
-  /* This is the program main loop */
-  Py_BEGIN_ALLOW_THREADS
-  ev_loop(mainloop, 0);
-  Py_END_ALLOW_THREADS
+    /* This is the program main loop */
+    Py_BEGIN_ALLOW_THREADS
+    ev_loop(mainloop, 0);
+    Py_END_ALLOW_THREADS
 }
 
 #if WANT_SIGINT_HANDLING
 static void
 ev_signal_on_sigint(struct ev_loop* mainloop, ev_signal* watcher, const int events)
 {
-  /* Clean up and shut down this thread.
-   * (Shuts down the Python interpreter if this is the main thread) */
-  ev_unloop(mainloop, EVUNLOOP_ALL);
-  PyErr_SetInterrupt();
+    /* Clean up and shut down this thread.
+    * (Shuts down the Python interpreter if this is the main thread) */
+    ev_unloop(mainloop, EVUNLOOP_ALL);
+    PyErr_SetInterrupt();
 }
 #endif
 
 bool server_init(const char* hostaddr, const int port)
 {
-  if((sockfd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
-    return false;
+    if((sockfd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0){
+        return false;
+    }
 
-  struct sockaddr_in sockaddr;
-  sockaddr.sin_family = PF_INET;
-  inet_pton(AF_INET, hostaddr, &sockaddr.sin_addr);
-  sockaddr.sin_port = htons(port);
+    struct sockaddr_in sockaddr;
+    sockaddr.sin_family = PF_INET;
+    inet_pton(AF_INET, hostaddr, &sockaddr.sin_addr);
+    sockaddr.sin_port = htons(port);
 
-  /* Set SO_REUSEADDR t make the IP address available for reuse */
-  int optval = true;
-  setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+    /* Set SO_REUSEADDR t make the IP address available for reuse */
+    int optval = true;
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 
-  if(bind(sockfd, (struct sockaddr*)&sockaddr, sizeof(sockaddr)) < 0)
-    return false;
+    if (bind(sockfd, (struct sockaddr*)&sockaddr, sizeof(sockaddr)) < 0){
+        return false;    
+    }
+    
 
-  if(listen(sockfd, LISTEN_BACKLOG) < 0)
-    return false;
-
-  DBG("Listening on %s:%d...", hostaddr, port);
-  return true;
+    if(listen(sockfd, LISTEN_BACKLOG) < 0){
+        return false;
+    }
+       
+    DBG("Listening on %s:%d...", hostaddr, port);
+    return true;
 }
 
 
@@ -106,207 +108,178 @@ bool server_init(const char* hostaddr, const int port)
 static void
 ev_io_on_request(struct ev_loop* mainloop, ev_io* watcher, const int events)
 {
-  int client_fd;
-  struct sockaddr_in sockaddr;
-  socklen_t addrlen;
+    int client_fd;
+    struct sockaddr_in sockaddr;
+    socklen_t addrlen;
 
-  addrlen = sizeof(struct sockaddr_in);
-  client_fd = accept(watcher->fd, (struct sockaddr*)&sockaddr, &addrlen);
-  if(client_fd < 0) {
-    DBG("Could not accept() client: errno %d", errno);
-    return;
-  }
+    addrlen = sizeof(struct sockaddr_in);
+    client_fd = accept(watcher->fd, (struct sockaddr*)&sockaddr, &addrlen);
+    if (client_fd < 0) {
+        DBG("Could not accept() client: errno %d", errno);
+        return;
+    }
 
-  int flags = fcntl(client_fd, F_GETFL, 0);
-  if(fcntl(client_fd, F_SETFL, (flags < 0 ? 0 : flags) | O_NONBLOCK) == -1) {
-    DBG("Could not set_nonblocking() client %d: errno %d", client_fd, errno);
-    return;
-  }
+    int flags = fcntl(client_fd, F_GETFL, 0);
+    if (fcntl(client_fd, F_SETFL, (flags < 0 ? 0 : flags) | O_NONBLOCK) == -1) {
+        DBG("Could not set_nonblocking() client %d: errno %d", client_fd, errno);
+        return;
+    }
   
-  GIL_LOCK(0);
-  Request* request = Request_new(client_fd, inet_ntoa(sockaddr.sin_addr));
-  GIL_UNLOCK(0);
+    GIL_LOCK(0);
+    Request* request = Request_new(client_fd, inet_ntoa(sockaddr.sin_addr));
+    GIL_UNLOCK(0);
 
-  DBG_REQ(request, "Accepted client %s:%d on fd %d",
+    DBG_REQ(request, "Accepted client %s:%d on fd %d",
           inet_ntoa(sockaddr.sin_addr), ntohs(sockaddr.sin_port), client_fd);
 
-  ev_io_init(&request->ev_watcher, &ev_io_on_read,
-             client_fd, EV_READ);
-  ev_io_start(mainloop, &request->ev_watcher);
+    ev_io_init(&request->ev_watcher, &ev_io_on_read, client_fd, EV_READ);
+    ev_io_start(mainloop, &request->ev_watcher);
 }
 
 static void
 ev_io_on_read(struct ev_loop* mainloop, ev_io* watcher, const int events)
 {
-  static char read_buf[READ_BUFFER_SIZE];
+    static char read_buf[READ_BUFFER_SIZE];
+    Request* request = REQUEST_FROM_WATCHER(watcher);
+  
+    Py_ssize_t read_bytes = read(
+        request->client_fd,
+        read_buf,
+        READ_BUFFER_SIZE
+    );
 
-  Request* request = REQUEST_FROM_WATCHER(watcher);
-
-  Py_ssize_t read_bytes = read(
-    request->client_fd,
-    read_buf,
-    READ_BUFFER_SIZE
-  );
-
-  GIL_LOCK(0);
-
-  if(read_bytes <= 0) {
-    if(errno != EAGAIN && errno != EWOULDBLOCK) {
-      if(read_bytes == 0)
-        DBG_REQ(request, "Client disconnected");
-      else
-        DBG_REQ(request, "Hit errno %d while read()ing", errno);
-      close(request->client_fd);
-      Request_free(request);
-      ev_io_stop(mainloop, &request->ev_watcher);
+    GIL_LOCK(0);
+  
+    if (read_bytes <= 0) {
+        if(errno != EAGAIN && errno != EWOULDBLOCK) {
+            if(read_bytes == 0)
+                DBG_REQ(request, "Client disconnected");
+            else
+                DBG_REQ(request, "Hit errno %d while read()ing", errno);
+            close(request->client_fd);
+            Request_free(request);
+            ev_io_stop(mainloop, &request->ev_watcher);
+        }
+        goto out;
     }
-    goto out;
-  }
 
-  // XXXX
-  // puts("--------------------------");
-  // puts(read_buf);
-  // puts("--------------------------");
+    Request_parse(request, read_buf, read_bytes);
 
-
-
-  Request_parse(request, read_buf, read_bytes);
-
-  if (request->state.error_code) {
-    DBG_REQ(request, "Parse error");
-    // XXX TODO: send error dammit 
-    request->current_chunk = PyString_FromString("-ERR parse error \r\n");
-    // request->current_chunk = PyString_FromString(    
-    assert(request->iterator == NULL);
-
-  } else if(request->state.parse_finished) {    
-
-    // Here we call our python application
-    if (!wsgi_call_application(request)) {      
-      assert(PyErr_Occurred());
-      PyErr_Print();
-      assert(!request->state.chunked_response);
-      Py_XCLEAR(request->iterator);
-      // TODO: return err...
-      request->current_chunk = PyString_FromString("-ERR exception in python \r\n");
+    if (request->state.error_code) {
+        DBG_REQ(request, "Parse error");
+        request->current_chunk = PyString_FromString("-ERR parse error \r\n");    
+        assert(request->iterator == NULL);
+    } else if(request->state.parse_finished) {    
+        // Here we call our python application
+        if (!wsgi_call_application(request)) {      
+            assert(PyErr_Occurred());
+            PyErr_Print();
+            assert(!request->state.chunked_response);
+            Py_XCLEAR(request->iterator);          
+            request->current_chunk = PyString_FromString("-ERR exception in python \r\n");
+        }    
+    } else {
+        /* Wait for more data */
+        goto out;
     }
-    
-  } else {
-    /* Wait for more data */
-    goto out;
-  }
 
-  ev_io_stop(mainloop, &request->ev_watcher);
-  ev_io_init(&request->ev_watcher, &ev_io_on_write,
-             request->client_fd, EV_WRITE);
-  ev_io_start(mainloop, &request->ev_watcher);
+    ev_io_stop(mainloop, &request->ev_watcher);
+    ev_io_init(&request->ev_watcher, &ev_io_on_write, request->client_fd, EV_WRITE);
+    ev_io_start(mainloop, &request->ev_watcher);
 
 out:  
-  GIL_UNLOCK(0);
-  return;
+    GIL_UNLOCK(0);
+    return;
 }
 
 static void
 ev_io_on_write(struct ev_loop* mainloop, ev_io* watcher, const int events)
 {
-  Request* request = REQUEST_FROM_WATCHER(watcher);
-
-  GIL_LOCK(0);
-
-  if(request->state.use_sendfile) {
-    /* sendfile */
-    // if(request->current_chunk && send_chunk(request))
-    //   goto out;
-    // /* abuse current_chunk_p to store the file fd */
-    // request->current_chunk_p = PyObject_AsFileDescriptor(request->iterable);
-    // if(do_sendfile(request))
-    //   goto out;
-  } else {
-    /* iterable */
-    if (send_chunk(request)){             
-        goto out;
-    }
+    Request* request = REQUEST_FROM_WATCHER(watcher);
+    GIL_LOCK(0);
+    if (request->state.use_sendfile) {
+        /* sendfile */
+        // if(request->current_chunk && send_chunk(request))
+        //   goto out;
+        // /* abuse current_chunk_p to store the file fd */
+        // request->current_chunk_p = PyObject_AsFileDescriptor(request->iterable);
+        // if(do_sendfile(request))
+        //   goto out;
+    } else {
+        /* iterable */
+        if (send_chunk(request)){             
+            goto out;
+        }
       
-    if(request->iterator) {      
-      PyObject* next_chunk;
-      DBG(">>>> getting next chunk");
-      next_chunk = wsgi_iterable_get_next_chunk(request);      
-      if(next_chunk != NULL) {
-          // DBG(">>>>>>>>>>>> writing next_chunk %s ", PyString_AS_STRING(next_chunk) );
-          request->current_chunk = wrap_redis_chunk(next_chunk, false, 0);
-          if (PyErr_Occurred()) {
+        if (request->iterator) {      
+            PyObject* next_chunk;      
+            next_chunk = wsgi_iterable_get_next_chunk(request);      
+            if (next_chunk != NULL) {          
+                request->current_chunk = wrap_redis_chunk(next_chunk, false, 0);
+                if (PyErr_Occurred()) {
+                    assert(false);
+                }
+                assert(request->current_chunk_p == 0);
+                goto out;
+            } else {        
+                if (PyErr_Occurred()) {
+                    PyErr_Print();
+                    /* We can't do anything graceful here because at least one
+                     * chunk is already sent... just close the connection */
+                    DBG_REQ(request, "Exception in iterator, can not recover");
+                    ev_io_stop(mainloop, &request->ev_watcher);
+                    close(request->client_fd);
+                    Request_free(request);
+                    goto out;
+                } 
+                Py_CLEAR(request->iterator);
+            }
+        }
+
+        if (request->state.chunked_response) {
             assert(false);
-          }
-          assert(request->current_chunk_p == 0);
-          goto out;
-      } else {        
-        if (PyErr_Occurred()) {
-          DBG("============= exception ====================");
-          PyErr_Print();
-          DBG("============= // exception ====================");
-          /* We can't do anything graceful here because at least one
-           * chunk is already sent... just close the connection */
-          DBG_REQ(request, "Exception in iterator, can not recover");
-          ev_io_stop(mainloop, &request->ev_watcher);
-          close(request->client_fd);
-          Request_free(request);
-          goto out;
-        } 
-        Py_CLEAR(request->iterator);
-      }
+            /* We have to send a terminating empty chunk + \r\n */
+            request->current_chunk = PyString_FromString("0\r\n\r\n");
+            assert(request->current_chunk_p == 0);
+            request->state.chunked_response = false;
+            goto out;
+        }
     }
 
-    if(request->state.chunked_response) {
-      assert(false);
-      /* We have to send a terminating empty chunk + \r\n */
-      request->current_chunk = PyString_FromString("0\r\n\r\n");
-      assert(request->current_chunk_p == 0);
-      request->state.chunked_response = false;
-      goto out;
-    }
-  }
-
-  ev_io_stop(mainloop, &request->ev_watcher);
-  // XXX
-  // if(request->state.keep_alive) {
+    ev_io_stop(mainloop, &request->ev_watcher);
     DBG_REQ(request, "done, keep-alive");
     Request_clean(request);
     Request_reset(request);
     ev_io_init(&request->ev_watcher, &ev_io_on_read,
                request->client_fd, EV_READ);
     ev_io_start(mainloop, &request->ev_watcher);
-  // } else {
-  //   DBG_REQ(request, "done, close");
-  //   close(request->client_fd);
-  //   Request_free(request);
-  // }
 
 out:
-  GIL_UNLOCK(0);
+    GIL_UNLOCK(0);
 }
 
 static bool
 send_chunk(Request* request)
 {
-  Py_ssize_t chunk_length;
-  Py_ssize_t bytes_sent;  
-  assert(request->current_chunk != NULL);
-  assert(!(request->current_chunk_p == PyString_GET_SIZE(request->current_chunk)
+    Py_ssize_t chunk_length;
+    Py_ssize_t bytes_sent;  
+    assert(request->current_chunk != NULL);
+    assert(!(request->current_chunk_p == PyString_GET_SIZE(request->current_chunk)
          && PyString_GET_SIZE(request->current_chunk) != 0));
-
-  bytes_sent = write(
-    request->client_fd,
-    PyString_AS_STRING(request->current_chunk) + request->current_chunk_p,
-    PyString_GET_SIZE(request->current_chunk) - request->current_chunk_p
-  );
     
-  if(bytes_sent == -1){
-      return handle_nonzero_errno(request);
-  }
+    bytes_sent = write(
+        request->client_fd,
+        PyString_AS_STRING(request->current_chunk) + request->current_chunk_p,
+        PyString_GET_SIZE(request->current_chunk) - request->current_chunk_p
+    );
     
-
-  request->current_chunk_p += bytes_sent;
-  if(request->current_chunk_p == PyString_GET_SIZE(request->current_chunk)) {
+    if(bytes_sent == -1){
+        return handle_nonzero_errno(request);
+    }
+    
+    request->current_chunk_p += bytes_sent;
+    
+    if(request->current_chunk_p == PyString_GET_SIZE(request->current_chunk)) {
     Py_CLEAR(request->current_chunk);
     request->current_chunk_p = 0;
     return false;
@@ -319,14 +292,14 @@ send_chunk(Request* request)
 static bool
 do_sendfile(Request* request)
 {
-  Py_ssize_t bytes_sent = sendfile(
-    request->client_fd,
-    request->current_chunk_p, /* current_chunk_p stores the file fd */
-    NULL, SENDFILE_CHUNK_SIZE
-  );
-  if(bytes_sent == -1)
-    return handle_nonzero_errno(request);
-  return bytes_sent != 0;
+    Py_ssize_t bytes_sent = sendfile(
+        request->client_fd,
+        request->current_chunk_p, /* current_chunk_p stores the file fd */
+        NULL, SENDFILE_CHUNK_SIZE
+    );
+    if(bytes_sent == -1)
+        return handle_nonzero_errno(request);
+    return bytes_sent != 0;
 }
 
 static bool

@@ -21,10 +21,6 @@ wsgi_call_application(Request* request)
     /* From now on, `headers` stores the _response_ headers
     * (passed by the WSGI app) rather than the _request_ headers */
     PyObject* request_headers = request->headers;  
-    if (request_headers == NULL){
-        // puts("request_headers is null");
-    }
-    
     request->headers = NULL;
   
     /* application(environ, start_response) call */
@@ -100,8 +96,15 @@ wsgi_call_application(Request* request)
         first_chunk = NULL;
     } else if (PyInt_Check(retval)){
         // integer replies dont have length of elements....
-        first_chunk = wrap_redis_chunk(retval, true, 0 ) ;
-        DBG(">>> first chunk");
+        first_chunk = wrap_redis_chunk(retval, true, 0 ) ;        
+        if (first_chunk == NULL && PyErr_Occurred()){
+            return false;
+        }
+
+    } else if (retval == Py_None){
+        // assert(false);
+        DBG("sending none !");
+        first_chunk = wrap_redis_chunk(retval, false, 0 ) ;        
         if (first_chunk == NULL && PyErr_Occurred()){
             return false;
         }
@@ -114,26 +117,12 @@ wsgi_call_application(Request* request)
             return false;
         }
 
-        first_chunk = wrap_redis_chunk( wsgi_iterable_get_next_chunk(request), true, PyList_GET_SIZE(retval) ) ;
-        DBG(">>> first chunk");
+        first_chunk = wrap_redis_chunk( wsgi_iterable_get_next_chunk(request), true, PyList_GET_SIZE(retval) ) ;        
         if (first_chunk == NULL && PyErr_Occurred()){
             return false;
         }
             
     }
-
-    // if(request->headers == NULL) {
-    // /* It is important that this check comes *after* the call to
-    //  * wsgi_iterable_get_next_chunk(), because in case the WSGI application
-    //  * was an iterator, there's no chance start_response could be called
-    //  * before. See above if you don't understand what I say. */
-    //     PyErr_SetString(
-    //         PyExc_RuntimeError,
-    //         "wsgi application returned before start_response was called"
-    //     );
-    //     Py_DECREF(first_chunk);
-    //     return false;
-    // }
 
     if(should_keep_alive(request)) {
         request->state.chunked_response = request->state.response_length_unknown;
@@ -254,128 +243,108 @@ inline PyObject*
 wsgi_iterable_get_next_chunk(Request* request)
 {
   /* Get the next item out of ``request->iterable``, skipping empty ones. */
-  PyObject* next;
-  while(true) {
-    DBG("next iterator");
-    
-    next = PyIter_Next(request->iterator);
-  
-    DBG("next %s", next);
-
-    if(next == NULL){
-        DBG("======================================================== next is null");
-        return NULL;
+    PyObject* next;
+    while(true) {
+        next = PyIter_Next(request->iterator);
+        if (next == NULL){        
+            return NULL;
+        }   
+        return next;
+        Py_DECREF(next);
     }
-      
-
-    // if(!PyString_Check(next)) {
-    //   // TYPE_ERROR("wsgi iterable items", "strings", next);
-    //   // Py_DECREF(next);
-    //   // return NULL;
-    // }
-    // DBG(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> %zd", PyString_Size(next));
-    // if(PyString_Size(next) >= 0){
-      return next;
-    // }
-      
-
-    Py_DECREF(next);
-  }
 }
 
 static inline void
 restore_exception_tuple(PyObject* exc_info, bool incref_items)
 {
-  if(incref_items) {
-    Py_INCREF(PyTuple_GET_ITEM(exc_info, 0));
-    Py_INCREF(PyTuple_GET_ITEM(exc_info, 1));
-    Py_INCREF(PyTuple_GET_ITEM(exc_info, 2));
-  }
-  PyErr_Restore(
-    PyTuple_GET_ITEM(exc_info, 0),
-    PyTuple_GET_ITEM(exc_info, 1),
-    PyTuple_GET_ITEM(exc_info, 2)
-  );
+    if(incref_items) {
+        Py_INCREF(PyTuple_GET_ITEM(exc_info, 0));
+        Py_INCREF(PyTuple_GET_ITEM(exc_info, 1));
+        Py_INCREF(PyTuple_GET_ITEM(exc_info, 2));
+    }
+    PyErr_Restore(
+        PyTuple_GET_ITEM(exc_info, 0),
+        PyTuple_GET_ITEM(exc_info, 1),
+        PyTuple_GET_ITEM(exc_info, 2)
+    );
 }
 
 static PyObject*
 start_response(PyObject* self, PyObject* args, PyObject* kwargs)
 {
-  Request* request = ((StartResponse*)self)->request;
-
-  if(request->state.start_response_called) {
-    /* not the first call of start_response --
-     * throw away any previous status and headers. */
-    Py_CLEAR(request->status);
-    Py_CLEAR(request->headers);
-    request->state.response_length_unknown = false;
-  }
-
-  PyObject* status = NULL;
-  PyObject* headers = NULL;
-  PyObject* exc_info = NULL;
-  if(!PyArg_UnpackTuple(args, "start_response", 2, 3, &status, &headers, &exc_info))
-    return NULL;
-
-  if(exc_info && exc_info != Py_None) {
-    if(!PyTuple_Check(exc_info) || PyTuple_GET_SIZE(exc_info) != 3) {
-      TYPE_ERROR("start_response argument 3", "a 3-tuple", exc_info);
-      return NULL;
+    Request* request = ((StartResponse*)self)->request;
+    if (request->state.start_response_called) {
+        /* not the first call of start_response --
+        * throw away any previous status and headers. */
+        Py_CLEAR(request->status);
+        Py_CLEAR(request->headers);
+        request->state.response_length_unknown = false;
     }
 
-    restore_exception_tuple(exc_info, /* incref items? */ true);
+    PyObject* status = NULL;
+    PyObject* headers = NULL;
+    PyObject* exc_info = NULL;
+    if(!PyArg_UnpackTuple(args, "start_response", 2, 3, &status, &headers, &exc_info))
+        return NULL;
 
-    if(request->state.wsgi_call_done) {
-      /* Too late to change headers. According to PEP 333, we should let
-       * the exception propagate in this case. */
-      return NULL;
-    }
+    if (exc_info && exc_info != Py_None) {
+        if (!PyTuple_Check(exc_info) || PyTuple_GET_SIZE(exc_info) != 3) {
+            TYPE_ERROR("start_response argument 3", "a 3-tuple", exc_info);
+            return NULL;
+        }
 
-    /* Headers not yet sent; handle this start_response call as if 'exc_info'
-     * would not have been passed, but print and clear the exception. */
-    PyErr_Print();
-  }
-  else if(request->state.start_response_called) {
-    PyErr_SetString(PyExc_TypeError, "'start_response' called twice without "
+        restore_exception_tuple(exc_info, /* incref items? */ true);
+        
+        if (request->state.wsgi_call_done) {
+          /* Too late to change headers. According to PEP 333, we should let
+           * the exception propagate in this case. */
+            return NULL;
+        }
+
+        /* Headers not yet sent; handle this start_response call as if 'exc_info'
+        * would not have been passed, but print and clear the exception. */
+        PyErr_Print();
+    } else if(request->state.start_response_called) {
+        PyErr_SetString(PyExc_TypeError, "'start_response' called twice without "
                      "passing 'exc_info' the second time");
-    return NULL;
-  }
+        return NULL;
+    }
 
-  if(!PyString_Check(status)) {
-    TYPE_ERROR("start_response argument 1", "a 'status reason' string", status);
-    return NULL;
-  }
-  if(!PyList_Check(headers)) {
-    TYPE_ERROR("start response argument 2", "a list of 2-tuples", headers);
-    return NULL;
-  }
+    if (!PyString_Check(status)) {
+        TYPE_ERROR("start_response argument 1", "a 'status reason' string", status);
+        return NULL;
+    }
+  
+    if (!PyList_Check(headers)) {
+        TYPE_ERROR("start response argument 2", "a list of 2-tuples", headers);
+        return NULL;
+    }
 
-  request->headers = headers;
+    request->headers = headers;
 
-  if(!inspect_headers(request)) {
-    request->headers = NULL;
-    return NULL;
-  }
+    if (!inspect_headers(request)) {
+        request->headers = NULL;
+        return NULL;
+    }
 
-  request->status = status;
+    request->status = status;
 
-  Py_INCREF(request->status);
-  Py_INCREF(request->headers);
+    Py_INCREF(request->status);
+    Py_INCREF(request->headers);
 
-  request->state.start_response_called = true;
-
-  Py_RETURN_NONE;
+    request->state.start_response_called = true;
+    Py_RETURN_NONE;
 }
 
 PyTypeObject StartResponse_Type = {
-  PyVarObject_HEAD_INIT(NULL, 0)
-  "start_response",           /* tp_name (__name__)                         */
-  sizeof(StartResponse),      /* tp_basicsize                               */
-  0,                          /* tp_itemsize                                */
-  (destructor)PyObject_FREE,  /* tp_dealloc                                 */
-  0, 0, 0, 0, 0, 0, 0, 0, 0,  /* tp_{print,getattr,setattr,compare,...}     */
-  start_response,              /* tp_call (__call__)                         */
-  0 /* tp_str */
+    PyVarObject_HEAD_INIT(NULL, 0)
+    "start_response",           /* tp_name (__name__)                         */
+    sizeof(StartResponse),      /* tp_basicsize                               */
+    0,                          /* tp_itemsize                                */
+    (destructor)PyObject_FREE,  /* tp_dealloc                                 */
+    0, 0, 0, 0, 0, 0, 0, 0, 0,  /* tp_{print,getattr,setattr,compare,...}     */
+    start_response,              /* tp_call (__call__)                         */
+    0 /* tp_str */
 };
 
 #define F_KEEP_ALIVE 1<<1
@@ -385,101 +354,75 @@ static inline bool
 should_keep_alive(Request* request)
 {
     return false;
-  // /*
-  // if(!(request->parser.parser.flags & F_KEEP_ALIVE)) {
-  //   /* Only keep-alive if the client requested it explicitly */
-  //   return false;
-  // }
-  // if(request->state.response_length_unknown) {
-  //   /* If the client wants to keep-alive the connection but we don't know
-  //    * the response length, we can use Transfer-Encoding: chunked on HTTP/1.1.
-  //    * On HTTP/1.0 no such thing exists so there's no other option than closing
-  //    * the connection to indicate the response end. */
-  //   return have_http11(request->parser.parser);
-  // } else {
-  //   /* If the response length is known we can keep-alive for both 1.0 and 1.1 */
-  //   return true;
-  // }
 }
 
 PyObject*
 wrap_redis_chunk(PyObject* chunk, bool with_header, int total_elements_count)
 {
-  DBG(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> in wrap_redis_chunk: %s", PyString_AS_STRING(chunk));
-  /* 
-   * for every iterator chunk we need to wrap with
-   * $10\r\n
-   * data\r\n
-   */
-  if (chunk == NULL){  
-    // if its a null value, we should send 
-    // $-1\r\n    
-    char length_line[100];
-    size_t length_line_size;    
-    if (with_header){
-        length_line_size = sprintf(length_line, "*%i\r\n$-1\r\n", total_elements_count);  
-    } else {
-        length_line_size = sprintf(length_line, "$-1\r\n");  
-    } 
-
-    PyObject* new_chunk = PyString_FromStringAndSize(length_line, length_line_size);
-    return new_chunk;
-
-  } else if (PyInt_Check(chunk)){
-      long num = PyInt_AsLong(chunk);    
-
-      char length_line[100];
-      size_t length_line_size;    
-      // integer replies doesnt have multibulk len
-      length_line_size = sprintf(length_line, ":%d\r\n", num);  
-
-      PyObject* new_chunk = PyString_FromStringAndSize(length_line, length_line_size);
-      return new_chunk;
-
-
-  } else {
-
-    char length_line[100];
-    size_t length_line_size;
-    Py_ssize_t chunklen;
-    if (chunk == Py_None){
-      chunklen = -1;
-    } else {
-      chunklen = PyString_Size(chunk);    
-    }
-    
-    printf("chunklen %zd \n", chunklen);
-    if (chunklen == -1){        
-        // sending null value...      
+    /* 
+    * for every iterator chunk we need to wrap with
+    * $10\r\n
+    * data\r\n
+    */
+    if (chunk == NULL){  
+        // if its a null value, we should send 
+        // $-1\r\n    
+        char length_line[100];
+        size_t length_line_size;    
         if (with_header){
             length_line_size = sprintf(length_line, "*%i\r\n$-1\r\n", total_elements_count);  
         } else {
             length_line_size = sprintf(length_line, "$-1\r\n");  
-        }         
+        } 
+
+        PyObject* new_chunk = PyString_FromStringAndSize(length_line, length_line_size);
+        return new_chunk;
+
+    } else if (PyInt_Check(chunk)){
+        long num = PyInt_AsLong(chunk);    
+        char length_line[100];
+        size_t length_line_size;    
+        // integer replies doesnt have multibulk len
+        length_line_size = sprintf(length_line, ":%d\r\n", num);  
         PyObject* new_chunk = PyString_FromStringAndSize(length_line, length_line_size);
         return new_chunk;
     } else {
-      assert(chunklen>=0);    
+        char length_line[100];
+        size_t length_line_size;
+        Py_ssize_t chunklen;
+        if (chunk == Py_None){
+            chunklen = -1;
+        } else {
+            chunklen = PyString_Size(chunk);    
+        }
+    
+        if (chunklen == -1){        
+            // sending null value...      
+            if (with_header){
+                length_line_size = sprintf(length_line, "*%i\r\n$-1\r\n", total_elements_count);  
+            } else {
+                length_line_size = sprintf(length_line, "$-1\r\n");  
+            }         
+            PyObject* new_chunk = PyString_FromStringAndSize(length_line, length_line_size);
+            return new_chunk;
+        } else {
+            assert(chunklen>=0);    
+            if (with_header){
+                length_line_size = sprintf(length_line, "*%i\r\n$%i\r\n", total_elements_count,chunklen);  
+            } else {
+                length_line_size = sprintf(length_line, "$%i\r\n", chunklen);  
+            } 
       
-      if (with_header){
-          length_line_size = sprintf(length_line, "*%i\r\n$%i\r\n", total_elements_count,chunklen);  
-      } else {
-          length_line_size = sprintf(length_line, "$%i\r\n", chunklen);  
-      } 
-      
-      char *buf = malloc(length_line_size+chunklen+2);  
-      memcpy(buf, length_line, length_line_size);  
-      // add the actual chunk 
-      memcpy(buf + length_line_size,  PyString_AS_STRING(chunk), chunklen);
-      memcpy(buf + length_line_size + chunklen,  "\r\n", 2);
-      PyObject* new_chunk = PyString_FromStringAndSize(buf, length_line_size+chunklen+2);
-      free(buf);
-      return new_chunk;      
-    }
-
-
-  }
-  
+            char *buf = malloc(length_line_size+chunklen+2);  
+            memcpy(buf, length_line, length_line_size);  
+            // add the actual chunk 
+            memcpy(buf + length_line_size,  PyString_AS_STRING(chunk), chunklen);
+            memcpy(buf + length_line_size + chunklen,  "\r\n", 2);
+            PyObject* new_chunk = PyString_FromStringAndSize(buf, length_line_size+chunklen+2);
+            free(buf);
+            return new_chunk;      
+        }
+    }  
 }
 
 
