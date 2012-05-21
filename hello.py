@@ -2,20 +2,6 @@
 import thegiant
 from random import choice
 
-def app1(env, sr):
-    sr('200 ok', [('Foo', 'Bar'), ('Blah', 'Blubb'), ('Spam', 'Eggs'), ('Blurg', 'asdasjdaskdasdjj asdk jaks / /a jaksdjkas jkasd jkasdj '),
-                  ('asd2easdasdjaksdjdkskjkasdjka', 'oasdjkadk kasdk k k k k k ')])
-    return ['hello', 'world']
-
-def app2(env, sr):
-    sr('200 ok', [])
-    return 'hello'
-
-def app3(env, sr):
-    sr('200 abc', [('Content-Length', '12')])
-    yield 'Hello'
-    yield ' World'
-    yield '\n'
 
 h = {}
 
@@ -39,9 +25,25 @@ def app4(e, s):
 
     return ['+OK\r\n']
 
-apps = (app1, app2, app3, app4)
 
-def wsgi_app(env, start_response):
-    return choice(apps)(env, start_response)
+def sometimer(f):
+    print "timer called"
+    return 1
+
+class Foo(object):
+    def sometimer2(self):
+        print "timer called"
+        return 1
+    def __call__(self):
+        print "foo"
+    def __del__(self):
+        print "!!!! destroyed !!!"
+
+foo = Foo()
+
+a = {'f': foo}
+
+thegiant.add_timer(1, foo)
+thegiant.add_timer(1, sometimer)
 
 thegiant.run(app4, '0.0.0.0', 6380)

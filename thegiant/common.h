@@ -1,6 +1,7 @@
 #ifndef __common_h__
 #define __common_h__
 
+#include <ev.h>
 #include <Python.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -56,8 +57,17 @@ PyObject *_REMOTE_ADDR, *_PATH_INFO, *_QUERY_STRING, *_REQUEST_METHOD, *_GET,
 
 #endif
   
+
+
+#ifndef COMMONINCL
+#define COMMONINCL   
+
+
+
+
 int string2ll(const char *s, size_t slen, long long *value);
 int string2l(const char *s, size_t slen, long *value);
 
 
 
+#endif

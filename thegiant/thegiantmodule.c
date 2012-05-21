@@ -71,7 +71,102 @@ run(PyObject* self, PyObject* args)
   Py_RETURN_NONE;
 }
 
+
+list_timers_i = 0;
+
+static PyObject *add_timer(PyObject *self, PyObject *args)
+{
+
+    DBG("addtimer called");
+
+    struct TimerObj *timer;
+    if (list_timers_i<MAX_TIMERS)
+    {
+        timer = calloc(1,sizeof(struct TimerObj));
+        if (!PyArg_ParseTuple(args, "fO", &timer->delay, &timer->py_cb)){
+          return NULL;          
+        } 
+
+        timer->num = list_timers_i;
+
+        PyObject *pystring;
+        pystring = PyObject_Str(timer->py_cb);
+        DBG("timer called - 2.2.1");
+        char *pStrErrorMessage = PyString_AsString(pystring);
+        DBG("=============== err message ==================");
+        DBG("%s", pStrErrorMessage);
+        DBG("=============== err message ==================");        
+            
+        list_timers[list_timers_i]=timer;
+        list_timers_i++;
+    } 
+    else
+    {
+        printf("Limit of maximum %i timers has been reached\n", list_timers_i);
+    }
+    
+    return PyInt_FromLong(list_timers_i);    
+}
+
+
+void timer_cb(struct ev_loop *loop, ev_timer *w, int revents)
+{
+    DBG("timer called - 0");    
+    DBG("timer called - 1");    
+    struct TimerObj *timer= ((struct TimerObj*) (((char*)w) - offsetof(struct TimerObj,timerwatcher)));
+    DBG("timer called - 2");
+    printf(">>> %p \n", timer->py_cb);
+    assert(timer->py_cb);
+    DBG(">>>> %i", timer->num);
+
+    if (PyCallable_Check(timer->py_cb) == 1){
+        DBG("ok callable");
+    } 
+    Py_INCREF(timer->py_cb);
+    DBG("timer called - 2.2");
+    PyObject *pystring, *objtype;
+    objtype = PyObject_Type(timer->py_cb);
+    assert(objtype);
+    if (objtype == NULL){
+      assert(false);
+    }
+    DBG("timer called - 2.2 - 1");
+    pystring = PyObject_Str(objtype); 
+    DBG("timer called - 2.2 - 2");
+    char *pStrErrorMessage = PyString_AsString(pystring);
+    DBG("=============== err message ==================");
+    DBG("%s", pStrErrorMessage);
+    DBG("=============== err message ==================");
+
+    // PyObject *resp = PyEval_CallObject(timer->py_cb, NULL);
+    DBG("timer called - 2.1");
+
+    PyObject* resp = PyObject_CallFunctionObjArgs(
+        timer->py_cb,
+        1,
+        NULL /* sentinel */
+    );
+
+    DBG("timer called - 3");
+
+    if (resp==NULL)
+    {
+        if (PyErr_Occurred()) 
+        { 
+             PyErr_Print();
+        }
+        ev_timer_stop(loop, w);
+    }
+    if (resp==Py_False)
+    {
+        ev_timer_stop(loop, w);
+    }
+    Py_XDECREF(resp);
+}
+
+
 static PyMethodDef TheGiant_FunctionTable[] = {
+  {"add_timer", add_timer, METH_VARARGS, "Add a timer"},
   {"run", run, METH_VARARGS, run_doc},
   {"listen", listen, METH_VARARGS, listen_doc},
   {NULL, NULL, 0, NULL}

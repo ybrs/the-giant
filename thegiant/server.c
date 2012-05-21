@@ -10,6 +10,7 @@
 #include "common.h"
 #include "wsgi.h"
 #include "server.h"
+#include "thegiantmodule.h"
 
 #define LISTEN_BACKLOG  1024
 // xxx
@@ -37,12 +38,15 @@ static bool do_sendfile(Request*);
 static bool handle_nonzero_errno(Request*);
 
 
+
 void ev_io_on_timer(struct ev_loop *loop, ev_timer *w, int revents){
     DBG("timer called");
 }
 
 void server_run(void)//(const char* hostaddr, const int port)
 {
+    int i;
+    struct TimerObj *timer;
     struct ev_loop* mainloop = ev_default_loop(0);
     ev_io accept_watcher;
     ev_io_init(&accept_watcher, ev_io_on_request, sockfd, EV_READ);
@@ -56,6 +60,16 @@ void server_run(void)//(const char* hostaddr, const int port)
 
     // ev_timer_init(&mytimer, ev_io_on_timer, 1., 1.);
     // ev_timer_start(mainloop, &mytimer);
+
+    if (list_timers_i>=0)
+    {
+        for (i=0; i<list_timers_i; i++)
+        {
+            timer=list_timers[i];
+            ev_timer_init(&timer->timerwatcher, timer_cb, timer->delay, timer->delay);
+            ev_timer_start(mainloop, &timer->timerwatcher);
+        }
+    }
 
     /* This is the program main loop */
     Py_BEGIN_ALLOW_THREADS
@@ -181,9 +195,7 @@ ev_io_on_read(struct ev_loop* mainloop, ev_io* watcher, const int events)
             // TODO: this is a little bit messed up
             PyObject *ptype, *pvalue, *ptraceback, *pystring;
             PyErr_Fetch(&ptype, &pvalue, &ptraceback);
-
             assert(ptype != NULL);
-
             pystring = PyObject_Str(pvalue);
 
             char *pStrErrorMessage = PyString_AsString(pystring);
