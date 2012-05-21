@@ -173,10 +173,31 @@ ev_io_on_read(struct ev_loop* mainloop, ev_io* watcher, const int events)
         // Here we call our python application
         if (!wsgi_call_application(request)) {      
             assert(PyErr_Occurred());
-            PyErr_Print();
+            // PyErr_Print();
             assert(!request->state.chunked_response);
             Py_XCLEAR(request->iterator);          
-            request->current_chunk = PyString_FromString("-ERR exception in python \r\n");
+
+            // show the real error message
+            // TODO: this is a little bit messed up
+            PyObject *ptype, *pvalue, *ptraceback, *pystring;
+            PyErr_Fetch(&ptype, &pvalue, &ptraceback);
+
+            assert(ptype != NULL);
+
+            pystring = PyObject_Str(pvalue);
+
+            char *pStrErrorMessage = PyString_AsString(pystring);
+            DBG("=============== err message ==================");
+            DBG("%s", pStrErrorMessage);
+            DBG("=============== err message ==================");
+            char buf[200];
+            sprintf(buf, "-ERR %s\r\n", pStrErrorMessage);
+            request->current_chunk = PyString_FromString(buf);
+            Py_XDECREF(pystring);
+            Py_XDECREF(ptype); 
+            Py_XDECREF(pvalue); 
+            Py_XDECREF(ptraceback); 
+            // request->current_chunk = PyString_FromString("-ERR exception in python\r\n");
         }    
     } else {
         /* Wait for more data */
