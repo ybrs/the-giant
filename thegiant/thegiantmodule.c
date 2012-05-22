@@ -111,43 +111,25 @@ static PyObject *add_timer(PyObject *self, PyObject *args)
 
 void timer_cb(struct ev_loop *loop, ev_timer *w, int revents)
 {
-    DBG("timer called - 0");    
-    DBG("timer called - 1");    
+    GIL_LOCK(0);
     struct TimerObj *timer= ((struct TimerObj*) (((char*)w) - offsetof(struct TimerObj,timerwatcher)));
-    DBG("timer called - 2");
-    printf(">>> %p \n", timer->py_cb);
-    assert(timer->py_cb);
-    DBG(">>>> %i", timer->num);
 
-    if (PyCallable_Check(timer->py_cb) == 1){
-        DBG("ok callable");
+    assert(timer->py_cb);
+    if (PyCallable_Check(timer->py_cb) != 1){
+        return;      
     } 
-    Py_INCREF(timer->py_cb);
-    DBG("timer called - 2.2");
+
     PyObject *pystring, *objtype;
     objtype = PyObject_Type(timer->py_cb);
     assert(objtype);
     if (objtype == NULL){
       assert(false);
     }
-    DBG("timer called - 2.2 - 1");
-    pystring = PyObject_Str(objtype); 
-    DBG("timer called - 2.2 - 2");
-    char *pStrErrorMessage = PyString_AsString(pystring);
-    DBG("=============== err message ==================");
-    DBG("%s", pStrErrorMessage);
-    DBG("=============== err message ==================");
-
-    // PyObject *resp = PyEval_CallObject(timer->py_cb, NULL);
-    DBG("timer called - 2.1");
 
     PyObject* resp = PyObject_CallFunctionObjArgs(
         timer->py_cb,
-        1,
         NULL /* sentinel */
     );
-
-    DBG("timer called - 3");
 
     if (resp==NULL)
     {
@@ -162,6 +144,7 @@ void timer_cb(struct ev_loop *loop, ev_timer *w, int revents)
         ev_timer_stop(loop, w);
     }
     Py_XDECREF(resp);
+    GIL_UNLOCK(0);
 }
 
 

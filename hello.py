@@ -26,16 +26,13 @@ def app4(e, s):
     return ['+OK\r\n']
 
 
-def sometimer(f):
+def sometimer():
     print "timer called"
     return 1
 
 class Foo(object):
-    def sometimer2(self):
-        print "timer called"
-        return 1
     def __call__(self):
-        print "foo"
+        print "foo bar...."
     def __del__(self):
         print "!!!! destroyed !!!"
 
