@@ -40,6 +40,13 @@ class TestProtocol(unittest.TestCase):
         v = self.rediscli.execute_command("NULL")        
         assert None == v
 
+        # reply with a generator
+        v = self.rediscli.execute_command("GENERATOR")        
+        print "-----------------------------------------------"
+        print v
+        print "-----------------------------------------------"
+        assert [1,2,3] == v
+
         # error
         with self.assertRaises(ResponseError) as error:
             v = self.rediscli.execute_command("UNKNOWN")        

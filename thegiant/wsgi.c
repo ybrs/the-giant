@@ -3,34 +3,23 @@
 #include "filewrapper.h"
 #include "wsgi.h"
 
-static PyObject* (start_response)(PyObject* self, PyObject* args, PyObject *kwargs);
 static inline bool inspect_headers(Request*);
-static inline bool should_keep_alive(Request*);
 
-typedef struct {
-  PyObject_HEAD
-  Request* request;
-} StartResponse;
-
-bool
-wsgi_call_application(Request* request)
+bool wsgi_call_application(Request* request)
 {
-    StartResponse* start_response = PyObject_NEW(StartResponse, &StartResponse_Type);
-    start_response->request = request;
     /* From now on, `headers` stores the _response_ headers
     * (passed by the WSGI app) rather than the _request_ headers */
     PyObject* request_headers = request->headers;  
     request->headers = NULL;
   
-    /* application(environ, start_response) call */
+    /* application(environ) call */
     PyObject* retval = PyObject_CallFunctionObjArgs(
         wsgi_app,
-        request_headers,        
+        request_headers,
         NULL /* sentinel */
     );
 
-    Py_DECREF(request_headers);
-    Py_DECREF(start_response);
+    Py_DECREF(request_headers);    
     
     if(retval == NULL){
         return false;
@@ -86,15 +75,16 @@ wsgi_call_application(Request* request)
                 first_chunk = NULL;
             }
     } else if(FileWrapper_CheckExact(retval)) {
-        request->state.use_sendfile = true;
-        request->iterable = ((FileWrapper*)retval)->file;
-        Py_INCREF(request->iterable);
-        Py_DECREF(retval);
-        request->iterator = NULL;
-        first_chunk = NULL;
+        assert(false);
+        // request->state.use_sendfile = true;
+        // request->iterable = ((FileWrapper*)retval)->file;
+        // Py_INCREF(request->iterable);
+        // Py_DECREF(retval);
+        // request->iterator = NULL;
+        // first_chunk = NULL;
     } else if (PyInt_Check(retval)){
         // integer replies dont have length of elements....
-        first_chunk = wrap_redis_chunk(retval, true, 0 ) ;        
+        first_chunk = wrap_redis_chunk(retval, false, 0 ) ;        
         if (first_chunk == NULL && PyErr_Occurred()){
             return false;
         }
@@ -114,20 +104,14 @@ wsgi_call_application(Request* request)
         if(request->iterator == NULL){
             return false;
         }
-
-        first_chunk = wrap_redis_chunk( wsgi_iterable_get_next_chunk(request), true, PyList_GET_SIZE(retval) ) ;        
+        first_chunk = wrap_redis_chunk( wsgi_iterable_get_next_chunk(request), true, PyObject_Size(retval) ) ;        
         if (first_chunk == NULL && PyErr_Occurred()){
             return false;
         }
             
     }
 
-    if(should_keep_alive(request)) {
-        request->state.chunked_response = request->state.response_length_unknown;
-        request->state.keep_alive = true;
-    } else {
-        request->state.keep_alive = false;
-    }
+    request->state.keep_alive = false;
 
 
   /* Get the headers and concatenate the first body chunk.
@@ -206,7 +190,7 @@ err:
 
 inline PyObject*
 wsgi_iterable_get_next_chunk(Request* request)
-{
+{    
   /* Get the next item out of ``request->iterable``, skipping empty ones. */
     PyObject* next;
     while(true) {
@@ -234,92 +218,11 @@ restore_exception_tuple(PyObject* exc_info, bool incref_items)
     );
 }
 
-static PyObject*
-start_response(PyObject* self, PyObject* args, PyObject* kwargs)
-{
-    Request* request = ((StartResponse*)self)->request;
-    if (request->state.start_response_called) {
-        /* not the first call of start_response --
-        * throw away any previous status and headers. */
-        Py_CLEAR(request->status);
-        Py_CLEAR(request->headers);
-        request->state.response_length_unknown = false;
-    }
 
-    PyObject* status = NULL;
-    PyObject* headers = NULL;
-    PyObject* exc_info = NULL;
-    if(!PyArg_UnpackTuple(args, "start_response", 2, 3, &status, &headers, &exc_info))
-        return NULL;
-
-    if (exc_info && exc_info != Py_None) {
-        if (!PyTuple_Check(exc_info) || PyTuple_GET_SIZE(exc_info) != 3) {
-            TYPE_ERROR("start_response argument 3", "a 3-tuple", exc_info);
-            return NULL;
-        }
-
-        restore_exception_tuple(exc_info, /* incref items? */ true);
-        
-        if (request->state.wsgi_call_done) {
-          /* Too late to change headers. According to PEP 333, we should let
-           * the exception propagate in this case. */
-            return NULL;
-        }
-
-        /* Headers not yet sent; handle this start_response call as if 'exc_info'
-        * would not have been passed, but print and clear the exception. */
-        PyErr_Print();
-    } else if(request->state.start_response_called) {
-        PyErr_SetString(PyExc_TypeError, "'start_response' called twice without "
-                     "passing 'exc_info' the second time");
-        return NULL;
-    }
-
-    if (!PyString_Check(status)) {
-        TYPE_ERROR("start_response argument 1", "a 'status reason' string", status);
-        return NULL;
-    }
-  
-    if (!PyList_Check(headers)) {
-        TYPE_ERROR("start response argument 2", "a list of 2-tuples", headers);
-        return NULL;
-    }
-
-    request->headers = headers;
-
-    if (!inspect_headers(request)) {
-        request->headers = NULL;
-        return NULL;
-    }
-
-    request->status = status;
-
-    Py_INCREF(request->status);
-    Py_INCREF(request->headers);
-
-    request->state.start_response_called = true;
-    Py_RETURN_NONE;
-}
-
-PyTypeObject StartResponse_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    "start_response",           /* tp_name (__name__)                         */
-    sizeof(StartResponse),      /* tp_basicsize                               */
-    0,                          /* tp_itemsize                                */
-    (destructor)PyObject_FREE,  /* tp_dealloc                                 */
-    0, 0, 0, 0, 0, 0, 0, 0, 0,  /* tp_{print,getattr,setattr,compare,...}     */
-    start_response,              /* tp_call (__call__)                         */
-    0 /* tp_str */
-};
 
 #define F_KEEP_ALIVE 1<<1
 #define have_http11(parser) (parser.http_major > 0 && parser.http_minor > 0)
 
-static inline bool
-should_keep_alive(Request* request)
-{
-    return false;
-}
 
 PyObject*
 wrap_redis_chunk(PyObject* chunk, bool with_header, int total_elements_count)
@@ -347,8 +250,14 @@ wrap_redis_chunk(PyObject* chunk, bool with_header, int total_elements_count)
         long num = PyInt_AsLong(chunk);    
         char length_line[100];
         size_t length_line_size;    
-        // integer replies doesnt have multibulk len
-        length_line_size = sprintf(length_line, ":%d\r\n", num);  
+        
+        if (with_header){
+            length_line_size = sprintf(length_line, "*%i\r\n:%d\r\n", total_elements_count, num);  
+        } else {
+            // single integer replies doesnt have multibulk len
+            length_line_size = sprintf(length_line, ":%d\r\n", num);
+        } 
+
         PyObject* new_chunk = PyString_FromStringAndSize(length_line, length_line_size);
         return new_chunk;
     } else {

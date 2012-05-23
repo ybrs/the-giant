@@ -16,7 +16,9 @@ def setgetserver(e):
     elif (e['REDIS_CMD'][0] == 'ARRAY'):        
         return ['y', None, '', 'x', 1, 2, 4, 5]
     elif (e['REDIS_CMD'][0] == 'INT'):
-        return 123
+        return 123            
+    elif (e['REDIS_CMD'][0] == 'GENERATOR'):
+        return xrange(1,4)
     elif (e['REDIS_CMD'][0] == 'NULL'):
         return None
     raise Exception("unknown command")
