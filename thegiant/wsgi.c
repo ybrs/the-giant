@@ -4,7 +4,6 @@
 #include "wsgi.h"
 
 static PyObject* (start_response)(PyObject* self, PyObject* args, PyObject *kwargs);
-static size_t wsgi_getheaders(Request*, PyObject* buf);
 static inline bool inspect_headers(Request*);
 static inline bool should_keep_alive(Request*);
 
@@ -26,8 +25,7 @@ wsgi_call_application(Request* request)
     /* application(environ, start_response) call */
     PyObject* retval = PyObject_CallFunctionObjArgs(
         wsgi_app,
-        request_headers,
-        start_response,
+        request_headers,        
         NULL /* sentinel */
     );
 
@@ -139,7 +137,7 @@ wsgi_call_application(Request* request)
    * one send() call (in server.c:ev_io_on_write) which is a (tiny) performance
    * booster because less kernel calls means less kernel call overhead. */
     PyObject* buf = PyString_FromStringAndSize(NULL, 1024);
-    Py_ssize_t length = 0; // wsgi_getheaders(request, buf);
+    Py_ssize_t length = 0; 
 
   // if(length == 0) {
   //   printf(">>>> length: %s\n", length);
@@ -205,39 +203,6 @@ err:
   return false;
 }
 
-static size_t
-wsgi_getheaders(Request* request, PyObject* buf)
-{
-  char* bufp = PyString_AS_STRING(buf);
-
-  #define buf_write(src, len) \
-    do { \
-      size_t n = len; \
-      const char* s = src;  \
-      while(n--) *bufp++ = *s++; \
-    } while(0)
-  #define buf_write2(src) buf_write(src, strlen(src))
-
-  // buf_write2("HTTP/1.1 ");
-  // buf_write(PyString_AS_STRING(request->status),
-  //       PyString_GET_SIZE(request->status));
-
-  for(Py_ssize_t i=0; i<PyList_GET_SIZE(request->headers); ++i) {
-    PyObject *tuple = PyList_GET_ITEM(request->headers, i);
-    PyObject *field = PyTuple_GET_ITEM(tuple, 0),
-         *value = PyTuple_GET_ITEM(tuple, 1);
-    buf_write2("\r\n");
-    buf_write(PyString_AS_STRING(field), PyString_GET_SIZE(field));
-    buf_write2(": ");
-    buf_write(PyString_AS_STRING(value), PyString_GET_SIZE(value));
-  }
-
-  // if(request->state.chunked_response)
-  //   buf_write2("\r\nTransfer-Encoding: chunked");
-  // buf_write2("\r\n\r\n");  
-
-  return bufp - PyString_AS_STRING(buf);
-}
 
 inline PyObject*
 wsgi_iterable_get_next_chunk(Request* request)

@@ -6,7 +6,7 @@ import thegiant
 
 h = {}
 
-def setgetserver(e, s):
+def setgetserver(e):
     if (e['REDIS_CMD'][0] == 'SET'):
         h[e['REDIS_CMD'][1]] = e['REDIS_CMD'][2]
         return '+OK\r\n'
