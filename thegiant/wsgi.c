@@ -104,7 +104,7 @@ bool wsgi_call_application(Request* request)
         if(request->iterator == NULL){
             return false;
         }
-        first_chunk = wrap_redis_chunk( wsgi_iterable_get_next_chunk(request), true, PyObject_Size(retval) ) ;        
+        first_chunk = wrap_redis_chunk( response_iterable_get_next_chunk(request), true, PyObject_Size(retval) ) ;        
         if (first_chunk == NULL && PyErr_Occurred()){
             return false;
         }
@@ -158,8 +158,7 @@ out:
     return true;
 }
 
-static inline bool
-inspect_headers(Request* request)
+static inline bool inspect_headers(Request* request)
 {
   Py_ssize_t i;
   PyObject* tuple;
@@ -188,8 +187,7 @@ err:
 }
 
 
-inline PyObject*
-wsgi_iterable_get_next_chunk(Request* request)
+inline PyObject* response_iterable_get_next_chunk(Request* request)
 {    
   /* Get the next item out of ``request->iterable``, skipping empty ones. */
     PyObject* next;
@@ -203,8 +201,7 @@ wsgi_iterable_get_next_chunk(Request* request)
     }
 }
 
-static inline void
-restore_exception_tuple(PyObject* exc_info, bool incref_items)
+static inline void restore_exception_tuple(PyObject* exc_info, bool incref_items)
 {
     if(incref_items) {
         Py_INCREF(PyTuple_GET_ITEM(exc_info, 0));
@@ -224,8 +221,7 @@ restore_exception_tuple(PyObject* exc_info, bool incref_items)
 #define have_http11(parser) (parser.http_major > 0 && parser.http_minor > 0)
 
 
-PyObject*
-wrap_redis_chunk(PyObject* chunk, bool with_header, int total_elements_count)
+PyObject* wrap_redis_chunk(PyObject* chunk, bool with_header, int total_elements_count)
 {
     /* 
     * for every iterator chunk we need to wrap with

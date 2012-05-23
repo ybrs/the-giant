@@ -42,9 +42,6 @@ class TestProtocol(unittest.TestCase):
 
         # reply with a generator
         v = self.rediscli.execute_command("GENERATOR")        
-        print "-----------------------------------------------"
-        print v
-        print "-----------------------------------------------"
         assert [1,2,3] == v
 
         # error

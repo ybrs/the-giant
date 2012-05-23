@@ -76,8 +76,7 @@ void server_run(void)//(const char* hostaddr, const int port)
 }
 
 #if WANT_SIGINT_HANDLING
-static void
-ev_signal_on_sigint(struct ev_loop* mainloop, ev_signal* watcher, const int events)
+static void ev_signal_on_sigint(struct ev_loop* mainloop, ev_signal* watcher, const int events)
 {
     /* Clean up and shut down this thread.
     * (Shuts down the Python interpreter if this is the main thread) */
@@ -117,8 +116,7 @@ bool server_init(const char* hostaddr, const int port)
 
 
 
-static void
-ev_io_on_request(struct ev_loop* mainloop, ev_io* watcher, const int events)
+static void ev_io_on_request(struct ev_loop* mainloop, ev_io* watcher, const int events)
 {
     int client_fd;
     struct sockaddr_in sockaddr;
@@ -148,8 +146,7 @@ ev_io_on_request(struct ev_loop* mainloop, ev_io* watcher, const int events)
     ev_io_start(mainloop, &request->ev_watcher);
 }
 
-static void
-ev_io_on_read(struct ev_loop* mainloop, ev_io* watcher, const int events)
+static void ev_io_on_read(struct ev_loop* mainloop, ev_io* watcher, const int events)
 {
     static char read_buf[READ_BUFFER_SIZE];
     Request* request = REQUEST_FROM_WATCHER(watcher);
@@ -223,8 +220,7 @@ out:
     return;
 }
 
-static void
-ev_io_on_write(struct ev_loop* mainloop, ev_io* watcher, const int events)
+static void ev_io_on_write(struct ev_loop* mainloop, ev_io* watcher, const int events)
 {
     Request* request = REQUEST_FROM_WATCHER(watcher);
     GIL_LOCK(0);
@@ -244,7 +240,7 @@ ev_io_on_write(struct ev_loop* mainloop, ev_io* watcher, const int events)
       
         if (request->iterator) {      
             PyObject* next_chunk;      
-            next_chunk = wsgi_iterable_get_next_chunk(request);      
+            next_chunk = response_iterable_get_next_chunk(request);      
             if (next_chunk != NULL) {          
                 request->current_chunk = wrap_redis_chunk(next_chunk, false, 0);
                 if (PyErr_Occurred()) {
@@ -289,8 +285,7 @@ out:
     GIL_UNLOCK(0);
 }
 
-static bool
-send_chunk(Request* request)
+static bool send_chunk(Request* request)
 {
     Py_ssize_t chunk_length;
     Py_ssize_t bytes_sent;  
@@ -320,8 +315,7 @@ send_chunk(Request* request)
 
 #define SENDFILE_CHUNK_SIZE 16*1024
 
-static bool
-do_sendfile(Request* request)
+static bool do_sendfile(Request* request)
 {
     Py_ssize_t bytes_sent = sendfile(
         request->client_fd,
@@ -333,8 +327,7 @@ do_sendfile(Request* request)
     return bytes_sent != 0;
 }
 
-static bool
-handle_nonzero_errno(Request* request)
+static bool handle_nonzero_errno(Request* request)
 {
   if(errno == EAGAIN || errno == EWOULDBLOCK) {
     /* Try again later */
