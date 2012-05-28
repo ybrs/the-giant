@@ -1,4 +1,4 @@
-Metadata-Version: 1.0
+Metadata-Version: 1.1
 Name: thegiant
 Version: 1.2
 Summary: A screamingly fast Python WSGI server written in C.

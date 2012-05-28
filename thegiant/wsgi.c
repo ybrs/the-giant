@@ -90,8 +90,7 @@ bool wsgi_call_application(Request* request)
         }
 
     } else if (retval == Py_None){
-        // assert(false);
-        DBG("sending none !");
+        // assert(false);        
         first_chunk = wrap_redis_chunk(retval, false, 0 ) ;        
         if (first_chunk == NULL && PyErr_Occurred()){
             return false;
@@ -131,7 +130,6 @@ bool wsgi_call_application(Request* request)
   // }
 
     if(first_chunk == NULL) {
-        DBG(">>> first chunk is null");
         _PyString_Resize(&buf, length);
         goto out;
     }
@@ -151,8 +149,7 @@ bool wsgi_call_application(Request* request)
     Py_DECREF(first_chunk);
 
 out:
-    request->state.wsgi_call_done = true;
-    DBG("request current chunk %s");
+    request->state.wsgi_call_done = true;    
     request->current_chunk = buf;
     request->current_chunk_p = 0;
     return true;

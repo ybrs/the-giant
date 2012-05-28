@@ -76,9 +76,6 @@ list_timers_i = 0;
 
 static PyObject *add_timer(PyObject *self, PyObject *args)
 {
-
-    DBG("addtimer called");
-
     struct TimerObj *timer;
     if (list_timers_i<MAX_TIMERS)
     {
@@ -90,13 +87,8 @@ static PyObject *add_timer(PyObject *self, PyObject *args)
         timer->num = list_timers_i;
 
         PyObject *pystring;
-        pystring = PyObject_Str(timer->py_cb);
-        DBG("timer called - 2.2.1");
+        pystring = PyObject_Str(timer->py_cb);        
         char *pStrErrorMessage = PyString_AsString(pystring);
-        DBG("=============== err message ==================");
-        DBG("%s", pStrErrorMessage);
-        DBG("=============== err message ==================");        
-            
         list_timers[list_timers_i]=timer;
         list_timers_i++;
     } 

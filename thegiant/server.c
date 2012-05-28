@@ -38,7 +38,7 @@ static bool handle_nonzero_errno(Request*);
 
 
 void ev_io_on_timer(struct ev_loop *loop, ev_timer *w, int revents){
-    DBG("timer called");
+    // DBG("timer called");
 }
 
 void server_run(void)//(const char* hostaddr, const int port)
@@ -194,9 +194,6 @@ static void ev_io_on_read(struct ev_loop* mainloop, ev_io* watcher, const int ev
             pystring = PyObject_Str(pvalue);
 
             char *pStrErrorMessage = PyString_AsString(pystring);
-            DBG("=============== err message ==================");
-            DBG("%s", pStrErrorMessage);
-            DBG("=============== err message ==================");
             char buf[200];
             sprintf(buf, "-ERR %s\r\n", pStrErrorMessage);
             request->current_chunk = PyString_FromString(buf);

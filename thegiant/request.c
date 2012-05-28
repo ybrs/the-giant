@@ -47,8 +47,7 @@ void Request_free(Request* request)
 }
 
 void Request_clean(Request* request)
-{
-  DBG(">>> request cleanup");
+{  
   free(request->requestbuffer);
 
   if(request->iterable) {
@@ -74,11 +73,6 @@ static int parse_multi_line_message(Request* request, const char* data, const si
     int pos = 0, ok;
     long long ll;
     int partialdone = 0;
-    // xxx
-    DBG("request last pos %i", request->lastpos);
-    DBG("--- received data --- %i", data_len);
-    DBG("%s", data);
-    DBG("--- // received data ---");    
 
     if (request->parse_phase == RDS_PHASE_CONNECT){
         if (request->multibulklen == 0) {        
@@ -106,9 +100,6 @@ static int parse_multi_line_message(Request* request, const char* data, const si
                 return true;
             }        
 
-            DBG("found length of commands");
-            DBG(">>>> len %i \n", ll);
-
             request->cmd_list = PyList_New(ll);
 
             request->multibulklen = ll;     
@@ -117,14 +108,12 @@ static int parse_multi_line_message(Request* request, const char* data, const si
             // now send the remainder to start line...
             request->lastpos = pos;                        
         }
-    }
-    DBG("multibulk len %i", request->multibulklen);
+    }    
     
 
     while (request->multibulklen){        
         // since we found the start line, here we parse it...
         if (request->parse_phase == RDS_PHASE_START){      
-              DBG("==== parsing start line now ====");
               if (data[request->lastpos] == '$'){
                       // 
                       newline = strchr(data+request->lastpos,'\r');
@@ -136,9 +125,6 @@ static int parse_multi_line_message(Request* request, const char* data, const si
                       if (!ok || ll < 0 || ll > 512*1024*1024) {
                           return -2;
                       }
-
-                      DBG("found length of data line");
-                      DBG(">>>> len %i \n", ll);
 
                         // now parse data line...            
                         pos = (newline - data)+2;
@@ -161,31 +147,20 @@ static int parse_multi_line_message(Request* request, const char* data, const si
           }
           // 
           if (request->parse_phase == RDS_PHASE_DATA){      
-                DBG("======= parsing data line now ============ %i %i %i", (int) request->bulklen, data_len, request->lastpos);
-                DBG("===> data_len - request->lastpos: %i", data_len - request->lastpos);
-                DBG("===> bulk len: %i", request->bulklen+2);
 
                 if ((int)(data_len - request->lastpos) < 0){
-                  DBG("HELLLOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO ?????????????????");
                   return -1;
                 }
 
                 // do we have enough data ???
                 if ( (int)(data_len - request->lastpos) < (int)(request->bulklen+2)) {
-                    /* Not enough data (+2 == trailing \r\n) */
-                    DBG("------ !!!!! not enough data %i ", request->multibulklen);                    
+                    /* Not enough data (+2 == trailing \r\n) */                    
                     return -1;
                     break;
-                } else {                    
-                    DBG(">>>>>>>>>>>>>>>>>>>> setting item %i ", request->multibulklen);
+                } else {                                        
                     char *str2 = malloc(request->bulklen + 1);
                     memcpy(str2, data + request->lastpos, request->bulklen);                  
                     str2[request->bulklen] = '\0';
-
-                    DBG("---------------- arg -------------------");
-                    DBG(">>> %i ", request->bulklen);                      
-                    DBG("%s", str2);
-                    DBG("---------------- arg -------------------");
 
                     PyObject* str = PyString_FromStringAndSize(str2, request->bulklen);                  
                     PyList_SetItem(request->cmd_list, request->arg_cnt++, str);                   
@@ -197,19 +172,16 @@ static int parse_multi_line_message(Request* request, const char* data, const si
 
               
               request->lastpos = request->lastpos + request->bulklen + 2;
-              request->parse_phase = RDS_PHASE_START;
-              DBG("multibulklen: %i ", request->multibulklen);
+              request->parse_phase = RDS_PHASE_START;              
               request->multibulklen--;                              
           
           } // if RDS_PHASE_DATA
     } // while bulklen
 
-    if (request->multibulklen == 0){
-      DBG("returning 1");
-      return 1;
+    if (request->multibulklen == 0){      
+        return 1;
     }
-
-    DBG("returning -1");
+    
     return -1;
 }
 
@@ -217,7 +189,7 @@ static int parse_multi_line_message(Request* request, const char* data, const si
 
 
 static int parse_single_line_message(Request* request, const char* data, const size_t data_len){
-  return -2;
+    return -2;
 }
 
 
@@ -237,8 +209,6 @@ void Request_parse(Request* request, const char* data, const size_t data_len)
       parse_result = parse_single_line_message(request, request->requestbuffer, request->requestbufferlen);
   }
   
-  DBG(">>>>> parse_result %i", parse_result);
-
   // -2 is for an unrecoverable protocol error, we send a bad request and return...
   if (parse_result == -2){
       request->state.error_code = HTTP_BAD_REQUEST;
@@ -255,8 +225,7 @@ void Request_parse(Request* request, const char* data, const size_t data_len)
   }
 
 
-  if (parse_result == 1){
-      DBG("parse_result %i ", parse_result);
+  if (parse_result == 1){      
       on_line_complete(request);  
   }
 
