@@ -166,8 +166,9 @@ static void ev_io_on_read(struct ev_loop* mainloop, ev_io* watcher, const int ev
             else
                 DBG_REQ(request, "Hit errno %d while read()ing", errno);
             close(request->client_fd);
-            Request_free(request);
+            
             ev_io_stop(mainloop, &request->ev_watcher);
+            Request_free(request);
         }
         goto out;
     }

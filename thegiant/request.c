@@ -41,9 +41,9 @@ void Request_reset(Request* request)
 
 void Request_free(Request* request)
 {
-  Request_clean(request);
-  Py_DECREF(request->client_addr);
-  free(request);
+    Request_clean(request);
+    Py_DECREF(request->client_addr);
+    free(request);
 }
 
 void Request_clean(Request* request)
