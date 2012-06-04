@@ -25,9 +25,21 @@ def app4(e):
     # return ['+OK\r\n']
 
 
-def sometimer():
-    print "timer called"
+def stop_timer():
+    print "stop timer"
+    thegiant.stop_timer(0)
     return 1
+
+def restart_timer():
+    print "restart timer"
+    thegiant.stop_timer(1)
+    thegiant.restart_timer(0)
+    thegiant.add_timer(1, foo2)
+    return 1
+
+def foo2():
+    print "foo2"
+    return True
 
 class Foo(object):
     def __call__(self):
@@ -39,7 +51,8 @@ foo = Foo()
 
 a = {'f': foo}
 
-# thegiant.add_timer(1, foo)
-# thegiant.add_timer(1, sometimer)
+thegiant.add_timer(1, foo)
+thegiant.add_timer(3, stop_timer)
+thegiant.add_timer(5, restart_timer)
 
 thegiant.run(app4, '0.0.0.0', 6380)

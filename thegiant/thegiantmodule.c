@@ -85,7 +85,6 @@ static PyObject *add_timer(PyObject *self, PyObject *args)
         } 
 
         timer->num = list_timers_i;
-
         PyObject *pystring;
         pystring = PyObject_Str(timer->py_cb);        
         char *pStrErrorMessage = PyString_AsString(pystring);
@@ -100,6 +99,43 @@ static PyObject *add_timer(PyObject *self, PyObject *args)
     return PyInt_FromLong(list_timers_i);    
 }
 
+/*
+Procedure exposed in Python to stop a running timer: i
+*/
+static PyObject *stop_timer(PyObject *self, PyObject *args)
+{
+    int i;
+    struct TimerObj *timer;
+    struct ev_loop *loop = ev_default_loop(0);
+    if (!PyArg_ParseTuple(args, "i", &i))
+        return NULL;
+    timer=list_timers[i];
+    ev_timer_stop(loop, &timer->timerwatcher);
+    
+    return Py_None;
+}
+
+/*
+Procedure exposed in Python to restart a running timer: i
+*/
+static PyObject *restart_timer(PyObject *self, PyObject *args)
+{
+    int i;
+    struct TimerObj *timer;
+    struct ev_loop *loop = ev_default_loop(0);
+    if (!PyArg_ParseTuple(args, "i", &i))
+        return NULL;
+    if (i<=list_timers_i)
+    {
+        timer=list_timers[i];
+        ev_timer_again(loop, &timer->timerwatcher);
+    }
+    else
+    {
+        printf("index out of range\n");
+    }
+    return Py_None;
+}
 
 void timer_cb(struct ev_loop *loop, ev_timer *w, int revents)
 {
@@ -142,6 +178,9 @@ void timer_cb(struct ev_loop *loop, ev_timer *w, int revents)
 
 static PyMethodDef TheGiant_FunctionTable[] = {
   {"add_timer", add_timer, METH_VARARGS, "Add a timer"},
+  {"stop_timer", stop_timer, METH_VARARGS, "Stop a timer"},
+  {"restart_timer", restart_timer, METH_VARARGS, "Restart a timer"},
+
   {"run", run, METH_VARARGS, run_doc},
   {"listen", listen, METH_VARARGS, listen_doc},
   {NULL, NULL, 0, NULL}
