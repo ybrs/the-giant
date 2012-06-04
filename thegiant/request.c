@@ -67,6 +67,7 @@ void Request_clean(Request* request)
   Py_XDECREF(request->headers);
   Py_XDECREF(request->status);
   Py_XDECREF(request->current_chunk);
+  Py_XDECREF(request->cmd_list);
 }
 
 static int parse_multi_line_message(Request* request, const char* data, const size_t data_len){  
@@ -197,7 +198,6 @@ static int parse_single_line_message(Request* request, const char* data, const s
 void Request_parse(Request* request, const char* data, const size_t data_len)
 {
   int parse_result;
-
 
   // unless we do have a \r in the buffer, dont try to parse it
   request->requestbuffer = realloc(request->requestbuffer, request->requestbufferlen+data_len);

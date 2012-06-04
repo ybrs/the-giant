@@ -3,6 +3,7 @@
 # mainly for test purposes, dont use for anything else.
 import thegiant
 import gc
+import sys
 
 h = {}
 
@@ -24,5 +25,14 @@ def setgetserver(e):
     raise Exception("unknown command")
 
 
+def gc_dump():
+    # force collection
+    gc.collect()
+
+
 if __name__ == '__main__':
+    gc.enable()
+    gc.set_debug(gc.DEBUG_LEAK)
+
+    thegiant.add_timer(1, gc_dump)
     thegiant.run(setgetserver, '0.0.0.0', 6380)
