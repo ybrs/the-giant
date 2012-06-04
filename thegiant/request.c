@@ -66,6 +66,7 @@ void Request_clean(Request* request)
   Py_XDECREF(request->iterator);
   Py_XDECREF(request->headers);
   Py_XDECREF(request->status);
+  Py_XDECREF(request->current_chunk);
 }
 
 static int parse_multi_line_message(Request* request, const char* data, const size_t data_len){  
