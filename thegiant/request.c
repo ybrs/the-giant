@@ -278,8 +278,7 @@ void Request_parse(Request* request, const char* data, const size_t data_len)
 
 
 
-int
-on_line_complete(Request* request)
+int on_line_complete(Request* request)
 {
   // puts(">>> headers init");
   request->headers = PyDict_New();
@@ -351,6 +350,7 @@ void _initialize_request_module(const char* server_host, const int server_port)
   puts("init req. module");
 
   if (wsgi_base_dict == NULL) {
+    DBG("wsgi_base_dict is null");
     PycString_IMPORT;
     wsgi_base_dict = PyDict_New();
 
