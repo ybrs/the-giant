@@ -18,4 +18,4 @@ def setgetserver(e):
 
 
 
-thegiant.run(setgetserver, '0.0.0.0', 6380)
+thegiant.server.run(setgetserver, '0.0.0.0', 6380)

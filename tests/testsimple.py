@@ -8,7 +8,7 @@ import server
 
 def runserver():
     try:
-        thegiant.server.run(server.setgetserver, '0.0.0.0', 6380)
+        thegiant.server.run(server.app, '0.0.0.0', 6380)
     except Exception as e:
         print e
 

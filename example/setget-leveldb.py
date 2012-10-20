@@ -15,4 +15,4 @@ def setgetserver(e):
         return '$%s\r\n%s\r\n' % (len(v), v) 
     raise Exception("unknown command")
 
-thegiant.run(setgetserver, '0.0.0.0', 6380)
+thegiant.server.run(setgetserver, '0.0.0.0', 6380)

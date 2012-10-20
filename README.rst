@@ -54,6 +54,17 @@ Make sure *libev* is installed and then::
 Usage
 ~~~~~
 ::
-
-   thegiant.run(application, '0.0.0.0', 6380)
+    ''' simple key value server '''
+    import thegiant
+    from thegiant.helpers import OK
+    
+    h = {}
+    def app(e):
+        if (e['REDIS_CMD'][0] == 'SET'):
+            h[e['REDIS_CMD'][1]] = e['REDIS_CMD'][2]
+            return OK
+        elif (e['REDIS_CMD'][0] == 'GET'):
+            v = h[e['REDIS_CMD'][1]]
+            return reply(v)         
+    thegiant.server.run(application, '0.0.0.0', 6380)
 

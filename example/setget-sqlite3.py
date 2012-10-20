@@ -28,5 +28,5 @@ def commit_delayed():
     conn.commit()
     print "done"
 
-thegiant.add_timer(5, commit_delayed)    
-thegiant.run(setgetserver, '0.0.0.0', 6380)
+thegiant.server.add_timer(5, commit_delayed)    
+thegiant.server.run(setgetserver, '0.0.0.0', 6380)
