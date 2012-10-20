@@ -1,31 +1,31 @@
 the-giant: Redis protocol toolkit - Think it like a wsgi server but speaks redis
 ====================================================================
 
-Fast and lightweight asynchronous redis server implementation that does nothing. Think it like wsgi server that speaks
-redis. 
+Fast and lightweight asynchronous redis server implementation that does nothing. Think it like wsgi server 
+that speaks redis. 
 
 Possible use cases
 -----------------------------------------
 As far as I can think of you can do:
 
-* Implement a fast communication channel between backend services:
+Implement a fast communication channel between backend services:
+-----------------------------------------------------------------
+You can easily handle thousands of connections with the-giant, and redis protocol is fast and 
+the-giant is really fast too. So you can do things in a different way. Eg. you can start 
+100 workers in the background, and push your jobs to them and keep the connection 
+open, so they immediately push back the results. Of course there are alternative 
+ways to do the same, you can do the same with an MQ server, you push your jobs to the broker 
+and pull results back, or you can use zeromq.  
 
-  You can easily handle thousands of connections with the-giant, and redis protocol is fast and 
-  the-giant is really fast too. So you can do things in a different way. Eg. you can start 
-  100 workers in the background, and push your jobs to them and keep the connection 
-  open, so they immediately push back the results. Of course there are alternative 
-  ways to do the same, you can do the same with an MQ server, you push your jobs to the broker 
-  and pull results back, or you can use zeromq.  
+Writing a redis proxy - possibly with some intelligence:
+------------------------------------------------------------------
+Like you ask for a key from the-giant, and your app checks the key in your cache then asks to 
+your database if its not in the cache etc.  Or one can implement something like mysql-proxy or 
+a load balancer for redis etc...
 
-* Writing a redis proxy - possibly with some intelligence:
-
-  Like you ask for a key from the-giant, and your app checks the key in your cache then asks to 
-  your database if its not in the cache etc.  Or one can implement something like mysql-proxy or 
-  a load balancer for redis etc...
-
-* Writing a redis clone:
-
-  Please don't try to do it and just install redis :)
+Writing a redis clone:
+------------------------------------------------------------------
+Please don't try to do it and just install redis :)
 
 Why ?
 ----------------------------
@@ -47,14 +47,18 @@ Why It's Cool
 
 Installation
 ---------------------
+
 libev
 -----
 Arch Linux
    `pacman -S libev`
+
 Ubuntu
    `apt-get install libev-dev`
+
 Mac OS X (using homebrew_)
    `brew install libev`
+
 Your Contribution Here
    Fork me and send a pull request
 
