@@ -35,6 +35,7 @@ setup(
                     'Programming Language :: C',
                     'Programming Language :: Python',
                     'Topic :: Internet :: WWW/HTTP :: WSGI :: Server'],
+    install_requires = ['redis'],
     ext_modules  = [thegiant_extension]
     
 )
