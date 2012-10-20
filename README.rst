@@ -40,11 +40,11 @@ Installation
 libev
 -----
 Arch Linux
-   ``pacman -S libev``
+   `pacman -S libev`
 Ubuntu
-   ``apt-get install libev-dev``
+   `apt-get install libev-dev`
 Mac OS X (using homebrew_)
-   ``brew install libev``
+   `brew install libev`
 Your Contribution Here
    Fork me and send a pull request
 
@@ -56,7 +56,7 @@ Make sure *libev* is installed and then::
 
 Usage
 -------------------
-```
+`
     ''' simple key value server '''
     import thegiant
     from thegiant.helpers import OK
@@ -70,4 +70,4 @@ Usage
             v = h[e['REDIS_CMD'][1]]
             return reply(v)         
     thegiant.server.run(application, '0.0.0.0', 6380)
-```
+`
