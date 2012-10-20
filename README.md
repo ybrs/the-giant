@@ -59,14 +59,12 @@ Ubuntu
 Mac OS X (using homebrew_)
    `brew install libev`
 
-Your Contribution Here
-   Fork me and send a pull request
 
 the-giant
 ------
 Make sure *libev* is installed and then::
 
-   python setup.py install
+    python setup.py install
 
 Usage
 -------------------
