@@ -56,6 +56,9 @@ Make sure *libev* is installed and then::
 
 Usage
 -------------------
+
+please dont fucking format me, this is a fucking code dammit markdown:
+
     ''' simple key value server '''
     import thegiant
     from thegiant.helpers import OK
