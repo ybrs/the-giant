@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-import thegiant
-
+from thegiant import server
+from thegiant.helpers import OK
 # this is a quick and dirty Key value server that holds everything in ram
 # mainly for test purposes
 
@@ -25,4 +25,4 @@ def setgetserver(e):
 
 
 if __name__ == '__main__':
-    thegiant.run(setgetserver, '0.0.0.0', 6380)
+    server.run(setgetserver, '0.0.0.0', 6380)

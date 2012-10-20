@@ -8,7 +8,7 @@
 PyDoc_STRVAR(listen_doc,
 "listen(application, host, port) -> None\n\n \
 \
-Makes bjoern listen to host:port and use application as WSGI callback. \
+Makes thegiant listen to host:port and use application as WSGI callback. \
 (This does not run the server mainloop.)");
 static PyObject*
 listen(PyObject* self, PyObject* args)
@@ -19,7 +19,7 @@ listen(PyObject* self, PyObject* args)
   if(wsgi_app) {
     PyErr_SetString(
       PyExc_RuntimeError,
-      "Only one bjoern server per Python interpreter is allowed"
+      "Only one giant server per Python interpreter is allowed"
     );
     return NULL;
   }
@@ -186,7 +186,7 @@ static PyMethodDef TheGiant_FunctionTable[] = {
   {NULL, NULL, 0, NULL}
 };
 
-PyMODINIT_FUNC initthegiant()
+PyMODINIT_FUNC initserver()
 {
   _init_common();
   _init_filewrapper();
@@ -196,6 +196,6 @@ PyMODINIT_FUNC initthegiant()
   PyType_Ready(&StartResponse_Type);
   assert(StartResponse_Type.tp_flags & Py_TPFLAGS_READY);
 
-  PyObject* thegiant_module = Py_InitModule("thegiant", TheGiant_FunctionTable);
+  PyObject* thegiant_module = Py_InitModule("thegiant.server", TheGiant_FunctionTable);
   PyModule_AddObject(thegiant_module, "version", Py_BuildValue("(ii)", 1, 2));
 }

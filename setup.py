@@ -8,10 +8,10 @@ undef_macros = ['NDEBUG']
 SOURCE_FILES = glob.glob(os.path.join('thegiant', '*.c'))
 
 thegiant_extension = Extension(
-    'thegiant',
+    'thegiant.server',
     sources       = SOURCE_FILES,
     libraries     = ['ev'],
-    include_dirs  = ['http-parser'],
+    # include_dirs  = [],
     define_macros = [('WANT_SENDFILE', '1'),
                      ('WANT_SIGINT_HANDLING', '1')
                       ], 
@@ -24,11 +24,11 @@ thegiant_extension = Extension(
 
 setup(
     name         = 'thegiant',
-    author       = 'Jonas Haag',
-    author_email = 'jonas@lophus.org',
+    author       = 'Aybars Badur',
+    author_email = 'aybars.badur@gmail.com',
     license      = '2-clause BSD',
-    url          = 'https://github.com/jonashaag/bjoern',
-    description  = 'A screamingly fast Python WSGI server written in C.',
+    url          = 'https://github.com/ybrs/the-giant',
+    description  = 'A wsgi server that speaks Redis written in C.',
     version      = '1.2',
     classifiers  = ['Development Status :: 4 - Beta',
                     'License :: OSI Approved :: BSD License',
@@ -36,6 +36,7 @@ setup(
                     'Programming Language :: Python',
                     'Topic :: Internet :: WWW/HTTP :: WSGI :: Server'],
     install_requires = ['redis'],
-    ext_modules  = [thegiant_extension]
-    
+    ext_modules  = [thegiant_extension],
+    py_modules = ['thegiant']
+
 )
