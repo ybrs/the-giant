@@ -45,7 +45,7 @@ Mac OS X (using homebrew_)
 Your Contribution Here
    Fork me and send a pull request
 
-bjoern
+the-giant
 ------
 Make sure *libev* is installed and then::
 
@@ -53,7 +53,6 @@ Make sure *libev* is installed and then::
 
 Usage
 ~~~~~
-::
     ''' simple key value server '''
     import thegiant
     from thegiant.helpers import OK
