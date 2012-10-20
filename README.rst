@@ -56,7 +56,6 @@ Make sure *libev* is installed and then::
 
 Usage
 -------------------
-`
     ''' simple key value server '''
     import thegiant
     from thegiant.helpers import OK
@@ -70,4 +69,3 @@ Usage
             v = h[e['REDIS_CMD'][1]]
             return reply(v)         
     thegiant.server.run(application, '0.0.0.0', 6380)
-`
