@@ -55,8 +55,8 @@ run(PyObject* self, PyObject* args)
     if(!wsgi_app) {
       PyErr_SetString(
         PyExc_RuntimeError,
-        "Must call bjoern.listen(app, host, port) before "
-        "calling bjoern.run() without arguments."
+        "Must call server.listen(app, host, port) before "
+        "calling server.run() without arguments."
       );
       return NULL;
     }

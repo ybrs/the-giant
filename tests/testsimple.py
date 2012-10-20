@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import unittest
 import thegiant
 import testsimple
@@ -27,6 +28,12 @@ class TestProtocol(unittest.TestCase):
         self.rediscli.set('foo', '123')        
         v = self.rediscli.get('foo')
         assert '123' == v
+
+        # some utf8
+        s = 'çöşğı'
+        self.rediscli.set('foo2', s)        
+        v = self.rediscli.get('foo2')
+        assert s == v
         
         # array replies
         v = self.rediscli.execute_command("ARRAY")
