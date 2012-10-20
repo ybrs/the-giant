@@ -34,5 +34,5 @@ if __name__ == '__main__':
     gc.enable()
     gc.set_debug(gc.DEBUG_LEAK)
 
-    thegiant.add_timer(1, gc_dump)
-    thegiant.run(setgetserver, '0.0.0.0', 6380)
+    thegiant.server.add_timer(1, gc_dump)
+    thegiant.server.run(setgetserver, '0.0.0.0', 6380)
