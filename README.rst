@@ -66,6 +66,10 @@ Make sure *libev* is installed and then::
 
     python setup.py install
 
+or just use 
+    
+    pip install thegiant
+
 Usage
 -------------------
 
