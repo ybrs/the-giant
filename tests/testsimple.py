@@ -51,6 +51,11 @@ class TestProtocol(unittest.TestCase):
         v = self.rediscli.execute_command("GENERATOR")        
         assert [1,2,3] == v
 
+        self.rediscli.execute_command("IDLECB")        
+        time.sleep(1)
+        v = self.rediscli.execute_command("IDLERESULT")
+        assert v == 1
+
         # error
         with self.assertRaises(ResponseError) as error:
             v = self.rediscli.execute_command("UNKNOWN")        

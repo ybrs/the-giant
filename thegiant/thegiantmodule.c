@@ -176,14 +176,92 @@ void timer_cb(struct ev_loop *loop, ev_timer *w, int revents)
 }
 
 
-static PyMethodDef TheGiant_FunctionTable[] = {
-  {"add_timer", add_timer, METH_VARARGS, "Add a timer"},
-  {"stop_timer", stop_timer, METH_VARARGS, "Stop a timer"},
-  {"restart_timer", restart_timer, METH_VARARGS, "Restart a timer"},
+PyObject *pydeferqueue;
+ev_idle *idle_watcher;
 
-  {"run", run, METH_VARARGS, run_doc},
-  {"listen", listen, METH_VARARGS, listen_doc},
-  {NULL, NULL, 0, NULL}
+/*
+Register a python function to execute when idle
+*/
+PyObject *py_defer(PyObject *self, PyObject *args)
+{
+    struct ev_loop *loop = ev_default_loop(0);
+    PyObject *pyfct, *pycombined, *pyfctargs;
+    int startidle=0;
+    int toadd=1;
+    int listsize=0;
+    
+    if (!PyArg_ParseTuple(args, "OOO", &pyfct, &pyfctargs, &pycombined))
+        return NULL;
+    //if queue is empty, trigger a start of idle
+    
+    if (!pydeferqueue) 
+    {
+        pydeferqueue=PyList_New(0);
+    }
+    listsize=PyList_Size(pydeferqueue);
+    if (listsize==0)
+    {
+        //it has been stopped by the idle_cb
+        startidle=1;    
+    }
+    //add fct cb into the defer queue
+    PyObject *pyelem=PyList_New(0);
+    PyList_Append(pyelem, pyfct);
+    PyList_Append(pyelem, pyfctargs);   
+    if (pycombined==Py_True)
+    {
+        //check if the fucntion is already in the queue
+        if (PySequence_Contains(pydeferqueue, pyelem))
+        {
+            toadd=0;
+        }
+    }
+    
+    if (toadd==1)
+    {
+        PyList_Append(pydeferqueue, pyelem);
+        //start the idle
+        if (startidle==1)
+        {
+            //we create a new idle watcher and we start it
+            DBG("trigger idle_start");
+            ev_idle_start(loop, idle_watcher);
+        }
+    }
+    Py_DECREF(pyelem);
+    return Py_None;
+}
+
+/*
+Return the defer queue size
+*/
+PyObject *py_defer_queue_size(PyObject *self, PyObject *args)
+{
+    int listsize;
+    if (pydeferqueue)
+    {
+        listsize = PyList_Size(pydeferqueue);  
+        return Py_BuildValue("i", listsize);
+    } 
+    else
+    {
+        return Py_None;
+    }
+}
+
+
+static PyMethodDef TheGiant_FunctionTable[] = {
+    {"add_timer", add_timer, METH_VARARGS, "Add a timer"},
+    {"stop_timer", stop_timer, METH_VARARGS, "Stop a timer"},
+    {"restart_timer", restart_timer, METH_VARARGS, "Restart a timer"},
+    
+    /** on idle **/
+    {"defer", py_defer, METH_VARARGS, "defer the execution of a python function."},
+    {"defer_queue_size", py_defer_queue_size, METH_VARARGS, "Get the size of the defer queue"},
+
+    {"run", run, METH_VARARGS, run_doc},
+    {"listen", listen, METH_VARARGS, listen_doc},
+    {NULL, NULL, 0, NULL}
 };
 
 PyMODINIT_FUNC initserver()

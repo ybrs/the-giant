@@ -3,6 +3,12 @@ from thegiant import server
 from thegiant.helpers import OK, reply
 # this is a quick and dirty server for test purposes
 
+idletest = 0
+
+def idlecb(v):    
+    global idletest
+    idletest = 1
+
 h = {}
 def app(e):
 
@@ -20,6 +26,14 @@ def app(e):
         return xrange(1,4)
     elif (e['REDIS_CMD'][0] == 'NULL'):
         return None
+    elif (e['REDIS_CMD'][0] == 'IDLECB'):
+        # if the 3rd parameter is True, callbacks will be combined, eg, if the callback is already
+        # registered in the callback queue, then it will not add the same function again.
+        server.defer(idlecb, 0.2, False)        
+        return OK
+    elif (e['REDIS_CMD'][0] == 'IDLERESULT'):
+        return idletest
+
     raise Exception("unknown command")
 
 
