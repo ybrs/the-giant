@@ -5,7 +5,7 @@ from thegiant.helpers import OK, reply
 
 h = {}
 def app(e):
-    print e
+
     if (e['REDIS_CMD'][0] == 'SET'):
         h[e['REDIS_CMD'][1]] = e['REDIS_CMD'][2]
         return OK

@@ -285,6 +285,9 @@ int on_line_complete(Request* request)
   PyDict_Update(request->headers, wsgi_base_dict);
   
   PyDict_SetItemString(request->headers, "REDIS_CMD", request->cmd_list);
+  PyDict_SetItemString(request->headers, "REMOTE_ADDR", request->client_addr);
+  PyDict_SetItemString(request->headers, "SERVER_PROTOCOL", _SERVER_PROTOCOL);
+
   if (request->cmd_list == NULL){    
     puts("WHATTTTTT !!!!!!!!!!!!!");
   } else {
@@ -313,6 +316,7 @@ int on_line_complete(Request* request)
 
   // /* REMOTE_ADDR */
   // _set_header(_REMOTE_ADDR, REQUEST->client_addr);
+  // _set_header(_REMOTE_ADDR, request->client_addr);
 
   // PyObject* body = PyDict_GetItem(REQUEST->headers, _wsgi_input);
   // if(body) {

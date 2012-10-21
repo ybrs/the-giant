@@ -29,9 +29,10 @@ thats all folks.
 The-Giant parses the request puts it into a variable and passes it to the function you give. More or less like a wsgi server,
 the variable you receive is a dictionary and has the following keys.
 
-Currently the only important variable is REDIS_CMD
+Currently the only important variables are REDIS_CMD which contains the command and variables of received redis command. 
+And REMOTE_ADDR which has the remote clients address.
 ::
-    {'REDIS_CMD': ['SET', 'foo', '123']}
+    {'REDIS_CMD': ['SET', 'foo', '123'], 'REMOTE_ADDR': '127.0.0.1'}
 
 Which is an array of variables.
 
@@ -71,11 +72,22 @@ just return None for a null response.
 
 **A generator**
 
-you can easily return a generator that yields strings or integers from the callback function
+You can return a generator that yields strings or integers from the callback function. For the redis protocol, we need to know
+the element count first. So if you are building a generator you need to implement __len__ method besides __iter__
+
+::
+
+    def fn(e):
+        return xrange(1,10)
 
 **An array**
 
 You can return an array of integers or strings.
+
+::
+
+    def fn(e):
+        return ['Foo', 'Bar', 1, None]
 
 **An OK**
 

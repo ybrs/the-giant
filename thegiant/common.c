@@ -34,6 +34,7 @@ void _init_common(void)
   _(HTTP_CONTENT_LENGTH); _(CONTENT_LENGTH); _(HTTP_CONTENT_TYPE); _(CONTENT_TYPE);
   _HTTP_1_1 = PyString_FromString("HTTP/1.1");
   _HTTP_1_0 = PyString_FromString("HTTP/1.0");
+  _SERVER_PROTOCOL = PyString_FromString("REDIS");
   _wsgi_input = PyString_FromString("wsgi.input");
   _empty_string = PyString_FromString("");
   #undef _
