@@ -69,6 +69,8 @@ Make sure *libev* is installed and then::
 Usage
 -------------------
 
+::
+
     ''' simple key value server '''
     import thegiant
     from thegiant.helpers import OK
