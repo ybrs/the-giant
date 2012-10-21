@@ -1,0 +1,239 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>User Guide &mdash; The-Giant 0.1.1 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/flasky.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="The-Giant 0.1.1 documentation" href="../index.html" />
+    <link rel="next" title="Installation" href="install.html" />
+    <link rel="prev" title="The-Giant:" href="../index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="install.html" title="Installation"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="../index.html" title="The-Giant:"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">The-Giant 0.1.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="user-guide">
+<h1>User Guide<a class="headerlink" href="#user-guide" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="basic-steps">
+<h2>Basic steps:<a class="headerlink" href="#basic-steps" title="Permalink to this headline">¶</a></h2>
+<p>create a web server that speaks redis:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c"># -*- coding: utf-8 -*-</span>
+<span class="kn">import</span> <span class="nn">thegiant</span>
+<span class="kn">from</span> <span class="nn">thegiant.helpers</span> <span class="kn">import</span> <span class="n">OK</span>
+<span class="n">h</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="k">def</span> <span class="nf">setgetserver</span><span class="p">(</span><span class="n">e</span><span class="p">):</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">e</span><span class="p">[</span><span class="s">&#39;REDIS_CMD&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;SET&#39;</span><span class="p">):</span>
+        <span class="n">h</span><span class="p">[</span><span class="n">e</span><span class="p">[</span><span class="s">&#39;REDIS_CMD&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="n">e</span><span class="p">[</span><span class="s">&#39;REDIS_CMD&#39;</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">OK</span>
+    <span class="k">elif</span> <span class="p">(</span><span class="n">e</span><span class="p">[</span><span class="s">&#39;REDIS_CMD&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;GET&#39;</span><span class="p">):</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">h</span><span class="p">[</span><span class="n">e</span><span class="p">[</span><span class="s">&#39;REDIS_CMD&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]]</span>
+        <span class="k">return</span> <span class="n">reply</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&quot;unknown command&quot;</span><span class="p">)</span>
+<span class="n">thegiant</span><span class="o">.</span><span class="n">server</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">setgetserver</span><span class="p">,</span> <span class="s">&#39;0.0.0.0&#39;</span><span class="p">,</span> <span class="mi">6380</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>thats all folks.</p>
+<p>The-Giant parses the request puts it into a variable and passes it to the function you give. More or less like a wsgi server,
+the variable you receive is a dictionary and has the following keys.</p>
+<p>Currently the only important variables are REDIS_CMD which contains the command and variables of received redis command.
+And REMOTE_ADDR which has the remote clients address.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="p">{</span><span class="s">&#39;REDIS_CMD&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s">&#39;SET&#39;</span><span class="p">,</span> <span class="s">&#39;foo&#39;</span><span class="p">,</span> <span class="s">&#39;123&#39;</span><span class="p">],</span> <span class="s">&#39;REMOTE_ADDR&#39;</span><span class="p">:</span> <span class="s">&#39;127.0.0.1&#39;</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>Which is an array of variables.</p>
+</div>
+<div class="section" id="returning-values">
+<h2>Returning values<a class="headerlink" href="#returning-values" title="Permalink to this headline">¶</a></h2>
+<p>From the receiving function you can return these type of responses:</p>
+<p><strong>integer</strong></p>
+<p>You can just return an integer from the receiving function, it will be encoded as an integer.</p>
+<p><strong>string</strong></p>
+<p>You can return a string from the receiving function but the-giant cannot know if you are trying to return a raw response
+or a string value, thats why there is a helper function reply(). If you are sending a raw response just return it.</p>
+<p>eg</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">fn</span><span class="p">(</span><span class="n">e</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s">&#39;+OK</span><span class="se">\r\n</span><span class="s">&#39;</span>
+</pre></div>
+</div>
+<p>if you are returning a string value</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">fn</span><span class="p">(</span><span class="n">e</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">reply</span><span class="p">(</span><span class="s">&#39;Foo&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>NULL</strong></p>
+<p>just return None for a null response.</p>
+<p><strong>A generator</strong></p>
+<p>You can return a generator that yields strings or integers from the callback function. For the redis protocol, we need to know
+the element count first. So if you are building a generator you need to implement __len__ method besides __iter__</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">fn</span><span class="p">(</span><span class="n">e</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">10</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>An array</strong></p>
+<p>You can return an array of integers or strings.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">fn</span><span class="p">(</span><span class="n">e</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[</span><span class="s">&#39;Foo&#39;</span><span class="p">,</span> <span class="s">&#39;Bar&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">None</span><span class="p">]</span>
+</pre></div>
+</div>
+<p><strong>An OK</strong></p>
+<p>If you don&#8217;t plan on returning any values but just an ok response, you can use</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">thegiant.helpers</span> <span class="kn">import</span> <span class="n">OK</span>
+<span class="k">def</span> <span class="nf">fn</span><span class="p">(</span><span class="n">e</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">OK</span>
+</pre></div>
+</div>
+<p><strong>An error</strong></p>
+<p>Just raise an exception, it will be converted to an error message in redis protocol</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">fn</span><span class="p">(</span><span class="n">e</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&#39;unknown command&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper"><p class="logo">
+  <a href="../index.html">
+    <img class="logo" width="218" src="../_static/sidebar.png" alt="Logo"/>
+  </a>
+</p>
+
+<p>
+  The-Giant is a redis protocol toolkit, think it like wsgi-ish server that speaks Redis. 
+</p>
+
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">User Guide</a><ul>
+<li><a class="reference internal" href="#basic-steps">Basic steps:</a></li>
+<li><a class="reference internal" href="#returning-values">Returning values</a></li>
+</ul>
+</li>
+</ul>
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../index.html" title="previous chapter">The-Giant:</a></li>
+      <li>Next: <a href="install.html" title="next chapter">Installation</a></li>
+  </ul></li>
+</ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy; Copyright 2012. .
+    </div>
+    <a href="https://github.com/ybrs/the-giant" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="http://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    <script type="text/javascript">
+    // /* <![CDATA[ */
+    //     (function() {
+    //         var s = document.createElement('script'), t = document.getElementsByTagName('script')[0];
+    //         s.type = 'text/javascript';
+    //         s.async = true;
+    //         s.src = 'http://api.flattr.com/js/0.6/load.js?mode=auto';
+    //         t.parentNode.insertBefore(s, t);
+    //     })();
+    // /* ]]> */
+    </script>
+
+    <script type="text/javascript">
+        // new HelloBar(36402,48802);
+    </script>
+
+
+    <script type="text/javascript">
+    /*
+      var _gaq = _gaq || [];
+      _gaq.push(['_setAccount', 'UA-8742933-11']);
+      _gaq.push(['_setDomainName', 'none']);
+      _gaq.push(['_setAllowLinker', true]);
+      _gaq.push(['_trackPageview']);
+
+      (function() {
+        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+      })();
+    */
+    </script>
+
+    <script type="text/javascript">
+      // (function() {
+      //   var t   = document.createElement('script');
+      //   t.type  = 'text/javascript';
+      //   t.async = true;
+      //   t.id    = 'gauges-tracker';
+      //   t.setAttribute('data-site-id',
+      //                  '4ddc27f6613f5d186d000007');
+      //   t.src = '//secure.gaug.es/track.js';
+      //   var s = document.getElementsByTagName('script')[0];
+      //   s.parentNode.insertBefore(t, s);
+      // })();
+    </script>
+  </body>
+</html>
