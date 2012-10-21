@@ -84,3 +84,7 @@ Usage
             v = h[e['REDIS_CMD'][1]]
             return reply(v)         
     thegiant.server.run(application, '0.0.0.0', 6380)
+
+Documentation
+-------------------
+http://ybrs.github.com/the-giant/
