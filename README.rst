@@ -59,6 +59,9 @@ Ubuntu
 Mac OS X (using homebrew_)
    `brew install libev`
 
+FreeBSD 9.1-RELEASE
+   `cd /usr/ports/devel/libev/ && make install clean`
+
 
 the-giant
 ------
