@@ -5,7 +5,11 @@
 #ifdef WANT_SIGINT_HANDLING
 #include <sys/signal.h>
 #endif
+
+#ifdef WANT_SENDFILE
 #include <sys/sendfile.h>
+#endif
+
 #include <ev.h>
 #include "common.h"
 #include "wsgi.h"
@@ -32,7 +36,10 @@ static ev_io_callback ev_io_on_request;
 static ev_io_callback ev_io_on_read;
 static ev_io_callback ev_io_on_write;
 static bool send_chunk(Request*);
+#ifdef WANT_SENDFILE
 static bool do_sendfile(Request*);
+#endif
+
 static bool handle_nonzero_errno(Request*);
 
 
@@ -359,6 +366,7 @@ static bool send_chunk(Request* request)
 
 #define SENDFILE_CHUNK_SIZE 16*1024
 
+#ifdef WANT_SENDFILE
 static bool do_sendfile(Request* request)
 {
     Py_ssize_t bytes_sent = sendfile(
@@ -370,6 +378,7 @@ static bool do_sendfile(Request* request)
         return handle_nonzero_errno(request);
     return bytes_sent != 0;
 }
+#endif
 
 static bool handle_nonzero_errno(Request* request)
 {

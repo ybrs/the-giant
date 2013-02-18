@@ -12,13 +12,14 @@ thegiant_extension = Extension(
     sources       = SOURCE_FILES,
     libraries     = ['ev'],
     # include_dirs  = [],
-    define_macros = [('WANT_SENDFILE', '1'),
+    define_macros = [# ('WANT_SENDFILE', '1'),
                      ('WANT_SIGINT_HANDLING', '1')
                       ], 
 #                     , ('DEBUG', '1')],
     # assert should assert                     
-    undef_macros = undef_macros,                                           
-    extra_compile_args = ['-std=c99', '-fno-strict-aliasing', '-Wall',
+    undef_macros = undef_macros,
+    extra_link_args = ['-L/usr/local/lib/'],
+    extra_compile_args = ['-std=c99', '-fno-strict-aliasing', '-Wall', '-I/usr/local/include/', '-L/usr/local/lib/',
                           '-Wextra', '-Wno-unused', '-g', '-fPIC']
 )
 

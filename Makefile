@@ -9,8 +9,8 @@ objects		= $(patsubst $(SOURCE_DIR)/%.c, $(BUILD_DIR)/%.o, \
 
 CPPFLAGS	+= $(PYTHON_INCLUDE) -I . -I $(SOURCE_DIR) 
 CFLAGS		+= $(FEATURES) -std=c99 -fno-strict-aliasing -Wall -Wextra \
-		   -Wno-unused -g -O0 -fPIC
-LDFLAGS		+= $(PYTHON_LDFLAGS) -l ev -shared
+		   -Wno-unused -g -O0 -fPIC -L/usr/local/lib/
+LDFLAGS		+= $(PYTHON_LDFLAGS) -l ev -shared -L/usr/local/lib/
 
 ifneq ($(WANT_SENDFILE), no)
 FEATURES	+= -D WANT_SENDFILE
