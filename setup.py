@@ -19,7 +19,7 @@ thegiant_extension = Extension(
     # assert should assert                     
     undef_macros = undef_macros,
     extra_link_args = ['-L/usr/local/lib/'],
-    extra_compile_args = ['-std=c99', '-fno-strict-aliasing', '-Wall', '-I/usr/local/include/', '-L/usr/local/lib/',
+    extra_compile_args = ['-std=c99', '-fno-strict-aliasing', '-Wall', '-I/usr/local/include/', '-I/usr/include/libev', '-L/usr/local/lib/',
                           '-Wextra', '-Wno-unused', '-g', '-fPIC']
 )
 

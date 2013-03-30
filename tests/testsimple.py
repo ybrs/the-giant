@@ -6,6 +6,7 @@ from redis import Redis, ResponseError
 import multiprocessing
 import time
 import server
+import sys
 
 def runserver():
     try:
@@ -57,9 +58,12 @@ class TestProtocol(unittest.TestCase):
         assert v == 1
 
         # error
-        with self.assertRaises(ResponseError) as error:
-            v = self.rediscli.execute_command("UNKNOWN")        
-        self.assertEqual(error.exception.message, 'unknown command')
+        if sys.version_info < (2, 7):
+            self.assertRaises(ResponseError, self.rediscli.execute_command, "UNKNOWN")
+        else:
+           with self.assertRaises(ResponseError) as error:
+               v = self.rediscli.execute_command("UNKNOWN")        
+               self.assertEqual(error.exception.message, 'unknown command')
 
     def tearDown(self):
         self.p.terminate()
