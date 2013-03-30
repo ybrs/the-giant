@@ -54,7 +54,8 @@ ev_idle *idle_watcher;
 void idle_cb(struct ev_loop *loop, ev_idle *w, int revents)
 {
     int listsize;
-        
+    GIL_LOCK(0);
+       
     listsize=PyList_Size(pydeferqueue);
     if (listsize>0)
     {
@@ -65,22 +66,25 @@ void idle_cb(struct ev_loop *loop, ev_idle *w, int revents)
         DBG("Execute 1 python function in defer mode:%i ", listsize);
 
         // 
-        GIL_LOCK(0);
         PyObject *response = PyObject_CallFunctionObjArgs(pyfct, pyfctargs, NULL); 
-        GIL_UNLOCK(0);            
 
+        DBG("2");
+     
         if (response==NULL) 
         {
             printf("ERROR!!!! Defer callback function as a problem. \nI remind that it takes always one argumet\n");
             PyErr_Print();
             //exit(1);
         }
+        DBG("3");
         Py_XDECREF(response);
         Py_DECREF(pyfct);
         Py_DECREF(pyfctargs);
         Py_DECREF(pyelem);
+        DBG("4");
         //remove the element
         PySequence_DelItem(pydeferqueue,0); // don't ask me why, but the delitem has to be after the decrefs
+        DBG("5");
     } else
     {
         //stop idle if queue is empty
@@ -89,6 +93,8 @@ void idle_cb(struct ev_loop *loop, ev_idle *w, int revents)
         Py_DECREF(pydeferqueue);
         pydeferqueue=NULL;
     }
+    
+    GIL_UNLOCK(0);
 }
 
 void server_run(void)//(const char* hostaddr, const int port)
